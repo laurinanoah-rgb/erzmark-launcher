@@ -3,6 +3,8 @@ mod commands;
 mod config;
 mod events;
 mod events_commands;
+mod friends;
+mod friends_commands;
 mod game;
 mod game_commands;
 mod news;
@@ -38,6 +40,7 @@ pub fn run() {
             settings_commands::open_log_file,
             settings_commands::reset_installation,
             events_commands::get_boss_event,
+            friends_commands::get_friends,
             skin_commands::get_current_skin_url,
             skin_commands::set_skin_url,
             skin_commands::upload_skin_file,

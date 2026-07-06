@@ -50,3 +50,8 @@ pub const FABRIC_MAVEN_BASE: &str = "https://maven.fabricmc.net/";
 /// Handling – kein Bezug zur Azure-Client-ID).
 pub const MC_LAUNCHER_CLIENT_ID: &str = "erzmark-launcher";
 pub const LAUNCHER_NAME: &str = "Erzmark Launcher";
+
+/// Read-only Freunde-API (kleines eigenes PHP-Skript auf erzmark.de, liest
+/// MMOCore-Freundeslisten + Online-Status aus MySQL – der Launcher hat nie
+/// direkten Datenbankzugriff, siehe PLANNING.md).
+pub const ERZMARK_FRIENDS_API_URL: &str = "https://erzmark.de/launcher/friends.php";

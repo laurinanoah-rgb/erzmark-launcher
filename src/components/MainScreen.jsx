@@ -4,6 +4,7 @@ import { getPlayStatus, installOrUpdate, launchGame } from "../api/game.js";
 import LauncherUpdateBanner from "./LauncherUpdateBanner.jsx";
 import ScreenshotGallery from "./ScreenshotGallery.jsx";
 import NewsFeed from "./NewsFeed.jsx";
+import FriendsList from "./FriendsList.jsx";
 import SettingsScreen from "./SettingsScreen.jsx";
 import BossEventCountdown from "./BossEventCountdown.jsx";
 import SkinChangerScreen from "./SkinChangerScreen.jsx";
@@ -216,6 +217,8 @@ export default function MainScreen({ session, onLoggedOut }) {
 
         <aside className="erzmark-sidebar">
           <NewsFeed />
+          <div className="erzmark-sidebar-divider" />
+          <FriendsList />
           <div className="erzmark-sidebar-divider" />
           <ScreenshotGallery />
         </aside>
