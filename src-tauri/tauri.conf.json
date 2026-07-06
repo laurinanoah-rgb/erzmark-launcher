@@ -52,7 +52,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZDMEY4NkNCRTBFRTdBRjEKUldUeGV1N2d5NFlQYkY5L1EzVUs2WkJVY2xTTU5ISFN0enA5YjlyMEZYOGcrQ1dFSExEZUZGd2YK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMwNjAxNThGM0YyMkVGQTIKUldTaTd5SS9qeFZnTUpyejVGLzRscGVPRDVuWlBSZWpPOW9xcEp4VE10YTdSZHh3QzNUL0FER2wK",
       "endpoints": ["https://erzmark.de/launcher/updates/latest.json"]
     }
   }
