@@ -23,6 +23,10 @@
   /* Schriftart 1:1 von erzmark.de (Google Font, siehe index.html) */
   --erzmark-font-family: "Nunito", "Segoe UI", system-ui, sans-serif;
 
+  /* Zusätzliche Zierschrift für hervorgehobene RPG-Elemente (Event-Timer
+     u.ä.) – bewusst nicht überall, nur dort wo es "episch" wirken soll. */
+  --erzmark-font-display: "Cinzel", "Nunito", serif;
+
   --erzmark-radius: 10px;
   --erzmark-logo-url: url("./assets/logo.png");
 }
@@ -321,16 +325,16 @@ body {
   gap: 18px;
 }
 
-/* ---- Sidebar: Screenshot-Vitrine ---- */
+/* ---- Sidebar: Widget-Dock ---- */
 
 .erzmark-sidebar {
-  width: 290px;
+  width: 340px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 20px 18px;
+  padding: 20px 14px 20px 18px;
   border-left: 1px solid rgba(255, 185, 0, 0.12);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .erzmark-sidebar-divider {
@@ -338,6 +342,96 @@ body {
   margin: 18px 0;
   background: linear-gradient(90deg, transparent, rgba(255, 185, 0, 0.25), transparent);
   flex-shrink: 0;
+}
+
+/* ---- Widget-Dock: schmale Icon-Leiste + ein großes, wechselndes Panel
+   statt alle Widgets gestapelt untereinander – bewusst reduziert & modern. ---- */
+
+.erzmark-dock {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.erzmark-dock-panel {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  animation: erzmark-dock-fade-in 0.22s ease;
+}
+
+@keyframes erzmark-dock-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.erzmark-dock-rail {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.erzmark-dock-tab {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(45, 54, 67, 0.4);
+  border: 1px solid rgba(255, 185, 0, 0.16);
+  color: var(--erzmark-color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.erzmark-dock-tab svg {
+  width: 19px;
+  height: 19px;
+}
+
+.erzmark-dock-tab:hover {
+  border-color: rgba(255, 185, 0, 0.4);
+  color: var(--erzmark-color-text);
+  transform: translateY(-1px);
+}
+
+.erzmark-dock-tab.is-active {
+  background: linear-gradient(145deg, rgba(255, 185, 0, 0.26), rgba(255, 185, 0, 0.06));
+  border-color: var(--erzmark-color-gold);
+  color: var(--erzmark-color-gold);
+  box-shadow: 0 0 14px rgba(255, 185, 0, 0.35);
+}
+
+.erzmark-dock-tab-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #3ddc84;
+  color: #0f131a;
+  font-size: 9px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 6px rgba(61, 220, 132, 0.7), 0 0 0 2px rgba(20, 24, 32, 0.9);
 }
 
 /* ---- Neuigkeiten (erzmark.de/news) ---- */
@@ -573,46 +667,86 @@ body {
   border-color: rgba(255, 185, 0, 0.6);
 }
 
-/* ---- Boss-Event-Countdown: soll sofort ins Auge springen ---- */
+/* ---- Event-Countdown: kompakte Plaque oben links, statt zentraler Blickfang
+   – so bleibt der Spielen-Button klar die Bühne, das Event ist "immer da"
+   im Blick, ohne zu dominieren. Zierschrift (Cinzel) für den RPG-Touch. ---- */
+
+.erzmark-event-corner {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  z-index: 2;
+}
 
 .erzmark-boss-countdown {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 10px;
+  padding: 9px 16px 9px 12px;
+  background: linear-gradient(145deg, rgba(23, 29, 38, 0.92), rgba(45, 54, 67, 0.55));
+  border: 1px solid rgba(255, 185, 0, 0.32);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.erzmark-boss-countdown:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 185, 0, 0.55);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.erzmark-boss-countdown:active {
+  transform: translateY(0);
+}
+
+.erzmark-boss-countdown-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--erzmark-color-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 185, 0, 0.5));
+}
+
+.erzmark-boss-countdown-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .erzmark-boss-countdown-label {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-family: var(--erzmark-font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--erzmark-color-gold);
 }
 
 .erzmark-boss-countdown-digits {
   display: flex;
-  align-items: flex-start;
-  gap: 4px;
+  align-items: baseline;
+  gap: 3px;
 }
 
 .erzmark-boss-countdown-unit {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: baseline;
   gap: 2px;
-  min-width: 58px;
 }
 
 .erzmark-boss-countdown-number {
-  font-size: 42px;
-  font-weight: 900;
+  font-family: var(--erzmark-font-display);
+  font-size: 19px;
+  font-weight: 800;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   color: var(--erzmark-color-text);
-  text-shadow: 0 0 16px rgba(255, 185, 0, 0.6), 0 0 3px rgba(255, 185, 0, 0.9);
+  text-shadow: 0 0 10px rgba(255, 185, 0, 0.45);
 }
 
 .erzmark-boss-countdown-seconds {
@@ -626,24 +760,34 @@ body {
     color: var(--erzmark-color-text);
   }
   50% {
-    transform: scale(1.15);
+    transform: scale(1.12);
     color: var(--erzmark-color-gold);
   }
 }
 
 .erzmark-boss-countdown-colon {
-  font-size: 34px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 800;
   color: rgba(255, 185, 0, 0.45);
-  transform: translateY(6px);
 }
 
 .erzmark-boss-countdown-unit-label {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-boss-countdown-description {
+  max-width: 220px;
+  margin: 1px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--erzmark-color-text-muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* Sechseckiger "Runenstein"-Button: äußere Schicht = Golderz-Rahmen,

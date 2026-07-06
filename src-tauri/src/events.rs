@@ -5,11 +5,11 @@
 //!
 //! Erwartetes Format unter `https://erzmark.de/launcher/events.json`:
 //! ```json
-//! { "nextBossEventAt": "2026-08-15T20:00:00Z", "eventName": "Der Ascheking" }
+//! { "nextBossEventAt": "2026-08-15T20:00:00Z", "eventName": "Der Ascheking", "description": "..." }
 //! ```
-//! `nextBossEventAt` ist ISO-8601/UTC. `eventName` ist optional. Existiert
-//! die Datei (noch) nicht oder ist kein Termin gesetzt, wird das Countdown-
-//! Widget im Launcher einfach ausgeblendet statt einen Fehler zu zeigen.
+//! `nextBossEventAt` ist ISO-8601/UTC. `eventName`/`description` sind optional.
+//! Existiert die Datei (noch) nicht oder ist kein Termin gesetzt, wird das
+//! Countdown-Widget im Launcher einfach ausgeblendet statt einen Fehler zu zeigen.
 
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +21,8 @@ pub struct BossEvent {
     pub next_boss_event_at: Option<String>,
     #[serde(rename = "eventName", default)]
     pub event_name: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 /// Lädt den Event-Termin. Gibt bei jedem Fehler (Datei fehlt, Netzwerk down,

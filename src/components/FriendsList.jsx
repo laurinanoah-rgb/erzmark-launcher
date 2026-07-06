@@ -23,7 +23,7 @@ function formatLastSeen(unixSeconds) {
  * MMOCore selbst). Online-Status kommt aus `lastloginapi_players`
  * (lastLogin > lastLogout = aktuell online).
  */
-export default function FriendsList() {
+export default function FriendsList({ onOnlineCountChange }) {
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,6 +33,7 @@ export default function FriendsList() {
     refresh();
     timerRef.current = window.setInterval(refresh, AUTO_REFRESH_MS);
     return () => window.clearInterval(timerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function refresh() {
@@ -41,6 +42,7 @@ export default function FriendsList() {
       const result = await getFriends();
       const sorted = [...result].sort((a, b) => Number(b.online) - Number(a.online));
       setFriends(sorted);
+      onOnlineCountChange?.(sorted.filter((f) => f.online).length);
     } catch (err) {
       setError(err?.message ?? String(err));
     } finally {

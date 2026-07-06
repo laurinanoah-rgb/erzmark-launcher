@@ -4,3 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 export async function getBossEvent() {
   return invoke("get_boss_event");
 }
+
+/** Öffnet die Event-Übersichtsseite auf erzmark.de im System-Standardbrowser. */
+export async function openExternalUrl(url) {
+  return invoke("open_external_url", { url });
+}
