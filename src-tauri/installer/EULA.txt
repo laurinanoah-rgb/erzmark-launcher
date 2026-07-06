@@ -1,0 +1,41 @@
+ERZMARK LAUNCHER – NUTZUNGSBEDINGUNGEN UND HINWEISE ZUM DATENSCHUTZ
+
+(Entwurf – bitte vor Veröffentlichung an eure echten Server-Regeln anpassen
+und im Zweifel rechtlich prüfen lassen. Kein Ersatz für eine rechtsverbindliche
+Datenschutzerklärung.)
+
+1. Über diese Anwendung
+Der Erzmark Launcher ist eine inoffizielle Drittanbieter-Anwendung für den
+privaten Minecraft-Server-Community-Projekt "Erzmark" (erzmark.de) und steht
+in keiner Verbindung zu Mojang Studios oder Microsoft.
+
+2. Voraussetzung
+Du benötigst ein gültiges, rechtmäßig erworbenes Minecraft: Java Edition
+-Konto (Microsoft-Konto). Der Launcher meldet dich über den offiziellen
+Microsoft-Anmeldevorgang an; dein Passwort wird dabei ausschließlich direkt
+gegenüber Microsoft eingegeben, niemals gegenüber Erzmark.
+
+3. Was lokal gespeichert wird
+- Ein verschlüsseltes Anmelde-Token (Microsoft Refresh-Token) auf deinem
+  Gerät, damit du dich nicht bei jedem Start neu anmelden musst. Dieses
+  Token verlässt dein Gerät nur, um damit gegenüber Microsoft/Xbox Live/
+  Minecraft-Services zu authentifizieren.
+- Deine Spieleinstellungen (z. B. zugewiesener Arbeitsspeicher).
+
+4. Automatische Updates
+Der Launcher lädt bei Bedarf automatisch aktualisierte Spieldateien
+(Mods/Konfiguration/Ressourcenpaket) von erzmark.de herunter und kann sich
+selbst auf eine neue Version aktualisieren.
+
+5. Nutzungsregeln
+Mit der Installation stimmst du zu, den Launcher nur in Verbindung mit dem
+Erzmark-Server und in Übereinstimmung mit den Minecraft-Nutzungsbedingungen
+von Mojang/Microsoft (EULA) zu verwenden. Missbräuchliche Nutzung (z. B.
+Umgehen von Sicherheitsprüfungen) ist nicht gestattet.
+
+6. Keine Gewähr
+Der Launcher wird ohne Gewährleistung bereitgestellt. Für Datenverlust oder
+Schäden durch die Nutzung wird im gesetzlich zulässigen Rahmen keine Haftung
+übernommen.
+
+Mit "Ich stimme zu" bestätigst du, diese Hinweise gelesen zu haben.

@@ -1,0 +1,50 @@
+[package]
+name = "erzmark-launcher"
+version = "1.2.0"
+description = "Erzmark Minecraft-Server Launcher"
+authors = ["Erzmark"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "erzmark_launcher_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "process"] }
+tiny_http = "0.12"
+open = "5"
+# Hinweis: Feature-Namen für die OS-Keychain-Backends können sich je nach
+# genauer keyring-Version leicht unterscheiden. Beim ersten `cargo build`
+# ggf. gegen die dann aktuelle Doku (docs.rs/keyring) prüfen/anpassen.
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+rand = "0.8"
+sha2 = "0.10"
+sha1 = "0.10"
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "1"
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+aes-gcm = "0.10"
+urlencoding = "2"
+url = "2"
+# Zum Entpacken der native Bibliotheken (.dll) aus LWJGL-Library-Jars.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+# Für die Screenshot-Galerie: Vorschaubilder aus den PNG-Screenshots erzeugen.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"

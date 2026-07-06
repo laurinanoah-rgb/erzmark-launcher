@@ -1,0 +1,13 @@
+node_modules
+dist
+src-tauri/target
+.env
+.DS_Store
+*.log
+
+# Signierschlüssel für den Launcher-Selbst-Update (tauri signer generate) –
+# NIEMALS committen. Der öffentliche Schlüssel (.key.pub) ist unkritisch und
+# steht ohnehin schon in tauri.conf.json, wird hier aber sicherheitshalber
+# nicht mit ausgeschlossen (falls er separat aufbewahrt werden soll, einfach
+# manuell hinzufügen).
+*.key

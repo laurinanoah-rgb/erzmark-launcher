@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Erzmark Launcher – Download</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --bg: #0f131a;
+    --panel: #171d26;
+    --panel-2: #2d3643;
+    --primary: #42b7fa;
+    --primary-hover: #00bcff;
+    --secondary: #00bc7d;
+    --gold: #ffb900;
+    --text: #e7ebef;
+    --text-muted: #9ba6b0;
+    --danger: #ef4343;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at 50% 0%, #1a2230 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: "Nunito", "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 56px 24px 80px;
+    text-align: center;
+  }
+
+  .logo {
+    width: 180px;
+    height: 180px;
+    object-fit: contain;
+    margin: 0 auto 8px;
+    display: block;
+    filter: drop-shadow(0 8px 30px rgba(66, 183, 250, 0.25));
+  }
+
+  h1 {
+    font-size: 34px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 8px 0 4px;
+    background: linear-gradient(90deg, var(--text), var(--primary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .tagline {
+    color: var(--text-muted);
+    font-size: 17px;
+    max-width: 520px;
+    margin: 0 auto 36px;
+  }
+
+  .download-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-2);
+    border-radius: var(--radius);
+    padding: 32px;
+    max-width: 460px;
+    margin: 0 auto 48px;
+  }
+
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    background: var(--primary);
+    color: #0f131a;
+    font-weight: 800;
+    font-size: 18px;
+    padding: 16px 24px;
+    border-radius: var(--radius);
+    text-decoration: none;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .btn-download:hover {
+    background: var(--primary-hover);
+  }
+
+  .btn-download:active {
+    transform: scale(0.98);
+  }
+
+  .meta {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 14px;
+  }
+
+  .version-pill {
+    display: inline-block;
+    background: var(--panel-2);
+    color: var(--secondary);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    text-align: left;
+    margin-top: 8px;
+  }
+
+  .feature {
+    background: var(--panel);
+    border: 1px solid var(--panel-2);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+
+  .feature h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    color: var(--primary);
+  }
+
+  .feature p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  footer {
+    margin-top: 56px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  footer a {
+    color: var(--primary);
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <img class="logo" src="logo.png" alt="Erzmark" />
+    <h1>Erzmark Launcher</h1>
+    <p class="tagline">
+      Der offizielle Desktop-Launcher für Erzmark – meldet dich mit deinem
+      Microsoft-Account an, hält den Client automatisch aktuell und verbindet
+      dich direkt mit dem Server. Kein Bastelaufwand, kein Modpack-Chaos.
+    </p>
+
+    <div class="download-card">
+      <span class="version-pill">Version 1.2.0</span>
+      <!--
+        LOKALER TEST: Der Link unten zeigt auf den Installer in deinem
+        Projektordner, damit die Seite per Doppelklick testbar ist.
+        VOR DEM ECHTEN UPLOAD auf erzmark.de wieder auf die Server-URL
+        umstellen, z. B.:
+        href="/launcher/updates/files/Erzmark_Launcher_1.2.0_x64-setup.exe"
+      -->
+      <a
+        class="btn-download"
+        href="../src-tauri/target/release/bundle/nsis/Erzmark%20Launcher_1.2.0_x64-setup.exe"
+        download
+      >
+        ⬇ Für Windows herunterladen
+      </a>
+      <p class="meta">
+        Windows 10/11 · 64-bit · ca. 15 MB<br />
+        macOS &amp; Linux folgen
+      </p>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <h3>Ein Klick zum Spielen</h3>
+        <p>Kein Versions- oder Modauswahl-Chaos – Installieren, Updaten und Play sind ein einziger Button.</p>
+      </div>
+      <div class="feature">
+        <h3>Automatische Updates</h3>
+        <p>Der Client bleibt immer exakt auf dem Stand, den der Server erwartet – und der Launcher selbst aktualisiert sich ebenfalls automatisch.</p>
+      </div>
+      <div class="feature">
+        <h3>Sicherer Microsoft-Login</h3>
+        <p>Anmeldung über den offiziellen Microsoft-OAuth-Flow – dein Account-Passwort sieht der Launcher nie.</p>
+      </div>
+      <div class="feature">
+        <h3>Direkt auf den Server</h3>
+        <p>Nach dem Start landest du automatisch auf erzmark.de – kein Suchen im Multiplayer-Menü.</p>
+      </div>
+    </div>
+
+    <footer>
+      Erzmark ist ein privates Community-Projekt und nicht mit Mojang oder Microsoft verbunden.
+      <br />
+      <a href="https://erzmark.de">erzmark.de</a>
+    </footer>
+  </div>
+</body>
+</html>
