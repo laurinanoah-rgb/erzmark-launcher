@@ -113,8 +113,10 @@ fn apply_fov_lock(game_dir: &Path) -> Result<()> {
 /// Startet Minecraft als eigenständigen Prozess (nicht an den Launcher
 /// gebunden). stdout/stderr landen in `<launcher_root>/logs/latest.log`,
 /// damit sich Abstürze im Nachhinein nachvollziehen lassen, ohne ein
-/// sichtbares Konsolenfenster zu öffnen.
-pub async fn launch(profile: &LaunchProfile, session: &SessionArgs) -> Result<()> {
+/// sichtbares Konsolenfenster zu öffnen. Gibt den Kindprozess zurück, damit
+/// der Aufrufer auf dessen Ende warten und das Frontend informieren kann
+/// (Button "Spiel läuft…" -> zurück zu "Spielen").
+pub async fn launch(profile: &LaunchProfile, session: &SessionArgs) -> Result<tokio::process::Child> {
     let java_exe = crate::game::java::java_executable_path(&profile.java_component)?;
     if !java_exe.exists() {
         anyhow::bail!("Java-Runtime nicht gefunden – bitte zuerst installieren/aktualisieren");
@@ -182,7 +184,7 @@ pub async fn launch(profile: &LaunchProfile, session: &SessionArgs) -> Result<()
         .context("Konnte Log-Datei nicht anlegen")?;
     let log_err = log_out.try_clone().context("Konnte Log-Datei nicht duplizieren")?;
 
-    Command::new(&java_exe)
+    let child = Command::new(&java_exe)
         .args(&jvm_args)
         .arg(&profile.main_class)
         .args(&game_args)
@@ -193,5 +195,5 @@ pub async fn launch(profile: &LaunchProfile, session: &SessionArgs) -> Result<()
         .spawn()
         .context("Minecraft-Prozess konnte nicht gestartet werden")?;
 
-    Ok(())
+    Ok(child)
 }

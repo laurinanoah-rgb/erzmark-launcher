@@ -77,6 +77,48 @@ pub async fn check_status(client: &reqwest::Client) -> PlayStatus {
     }
 }
 
+/// Vanilla- und Fabric-Libraries überschneiden sich manchmal in denselben
+/// Maven-Koordinaten (z. B. `org.ow2.asm:asm`), aber mit unterschiedlichen
+/// Versionen. Landen beide Jars auf dem Klassenpfad, verweigert Fabrics
+/// Knot-Classloader den Start ("duplicate ASM classes found on classpath").
+/// Deshalb hier pro Koordinate (Gruppe:Artefakt, ohne Version) nur die jeweils
+/// höchste Version behalten – Fabric-Libraries werden dabei zuletzt
+/// eingemischt, damit sie bei Gleichstand gewinnen.
+fn dedupe_classpath(vanilla: Vec<(String, String)>, fabric: Vec<(String, String)>) -> Vec<String> {
+    fn module_key(maven_name: &str) -> String {
+        maven_name.rsplitn(2, ':').nth(1).unwrap_or(maven_name).to_string()
+    }
+
+    fn version_key(maven_name: &str) -> Vec<u64> {
+        let version = maven_name.rsplit(':').next().unwrap_or("");
+        version
+            .split(|c: char| c == '.' || c == '-' || c == '_' || c == '+')
+            .map(|part| part.chars().take_while(|c| c.is_ascii_digit()).collect::<String>())
+            .map(|digits| digits.parse::<u64>().unwrap_or(0))
+            .collect()
+    }
+
+    let mut by_module: std::collections::HashMap<String, (Vec<u64>, String)> = std::collections::HashMap::new();
+    let mut order: Vec<String> = Vec::new();
+
+    for (name, path) in vanilla.into_iter().chain(fabric.into_iter()) {
+        let key = module_key(&name);
+        let candidate_version = version_key(&name);
+        let should_replace = match by_module.get(&key) {
+            Some((existing_version, _)) => &candidate_version >= existing_version,
+            None => true,
+        };
+        if should_replace {
+            if !by_module.contains_key(&key) {
+                order.push(key.clone());
+            }
+            by_module.insert(key, (candidate_version, path));
+        }
+    }
+
+    order.into_iter().filter_map(|key| by_module.remove(&key).map(|(_, path)| path)).collect()
+}
+
 fn extract_natives_if_needed(jar_path: &Path, artifact_path: &str, natives_dir: &Path) -> Result<()> {
     if !artifact_path.contains("natives") {
         return Ok(());
@@ -187,10 +229,10 @@ pub async fn install_or_update(
     let allowed_libs: Vec<&mojang::Library> = version_info
         .libraries
         .iter()
-        .filter(|lib| mojang::rules_allow(&lib.rules))
+        .filter(|lib| mojang::rules_allow(&lib.rules) && mojang::library_matches_current_platform(&lib.name))
         .collect();
     let total_libs = allowed_libs.len() as u64;
-    let mut vanilla_classpath: Vec<String> = Vec::new();
+    let mut vanilla_classpath: Vec<(String, String)> = Vec::new();
 
     for (i, lib) in allowed_libs.iter().enumerate() {
         report("libraries", &format!("Bibliotheken werden geladen… ({})", lib.name), i as u64, total_libs);
@@ -211,7 +253,7 @@ pub async fn install_or_update(
         extract_natives_if_needed(&dest, &artifact.path, &natives_dir)
             .with_context(|| format!("Natives-Extraktion fehlgeschlagen: {}", lib.name))?;
 
-        vanilla_classpath.push(dest.to_string_lossy().to_string());
+        vanilla_classpath.push((lib.name.clone(), dest.to_string_lossy().to_string()));
     }
     report("libraries", "Bibliotheken vollständig", total_libs, total_libs);
 
@@ -260,7 +302,7 @@ pub async fn install_or_update(
         .await
         .context("Fabric-Loader-Metadaten konnten nicht geladen werden")?;
 
-    let mut fabric_classpath: Vec<String> = Vec::new();
+    let mut fabric_classpath: Vec<(String, String)> = Vec::new();
     let fabric_libs_total = (fabric_entry.launcher_meta.libraries.common.len()
         + fabric_entry.launcher_meta.libraries.client.len()
         + 2) as u64; // +2 für Loader- und Intermediary-Jar
@@ -284,7 +326,7 @@ pub async fn install_or_update(
         downloader::download_if_needed(client, &url, &dest, None, downloader::Checksum::None)
             .await
             .with_context(|| format!("Fabric-Library fehlgeschlagen: {}", lib.name))?;
-        fabric_classpath.push(dest.to_string_lossy().to_string());
+        fabric_classpath.push((lib.name.clone(), dest.to_string_lossy().to_string()));
         fabric_done += 1;
     }
 
@@ -302,7 +344,7 @@ pub async fn install_or_update(
         downloader::download_if_needed(client, &url, &dest, None, downloader::Checksum::None)
             .await
             .with_context(|| format!("Fabric-{label} fehlgeschlagen"))?;
-        fabric_classpath.push(dest.to_string_lossy().to_string());
+        fabric_classpath.push((coordinate.clone(), dest.to_string_lossy().to_string()));
         fabric_done += 1;
     }
     report("fabric", "Fabric-Loader vollständig", fabric_libs_total, fabric_libs_total);
@@ -327,8 +369,7 @@ pub async fn install_or_update(
 
     // 9. Start-Profil zusammenbauen und persistieren
     let profile_id = format!("fabric-loader-{}-{}", erzmark_manifest.fabric_loader_version, mc_version);
-    let mut classpath = vanilla_classpath;
-    classpath.extend(fabric_classpath);
+    let mut classpath = dedupe_classpath(vanilla_classpath, fabric_classpath);
     classpath.push(client_jar_path.to_string_lossy().to_string());
 
     let profile = LaunchProfile {

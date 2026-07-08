@@ -18,4 +18,5 @@ pub mod launch;
 pub mod manifest;
 pub mod mojang;
 pub mod paths;
+pub mod player_status;
 pub mod screenshots;

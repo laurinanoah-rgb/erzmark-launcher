@@ -18,4 +18,9 @@ pub struct Session {
 #[derive(Default)]
 pub struct AppState {
     pub session: Mutex<Option<Session>>,
+    /// Prozess-ID des laufenden Minecraft-Clients, falls gerade gestartet
+    /// (siehe game_commands::launch_game). Nur zu Anzeigezwecken/als Hinweis
+    /// im Frontend – der eigentliche "läuft/beendet"-Übergang läuft über die
+    /// `game-started`/`game-exited`-Events.
+    pub game_process: Mutex<Option<u32>>,
 }

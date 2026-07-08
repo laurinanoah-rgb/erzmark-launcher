@@ -36,3 +36,21 @@ export async function installOrUpdate(onProgress) {
 export async function launchGame() {
   return invoke("launch_game");
 }
+
+/**
+ * Feuert, sobald der Minecraft-Prozess erfolgreich gestartet wurde (nicht
+ * erst wenn das Fenster sichtbar ist, aber deutlich zuverlässiger als ein
+ * Timer). Für den Play-Button -> "Spiel läuft…".
+ */
+export function onGameStarted(callback) {
+  return listen("game-started", callback);
+}
+
+/**
+ * Feuert, sobald der Minecraft-Prozess beendet wurde – egal ob durch
+ * normales Beenden, Verlassen des Servers (Quick-Play beendet den Client
+ * automatisch) oder Absturz. Setzt den Play-Button zurück.
+ */
+export function onGameExited(callback) {
+  return listen("game-exited", callback);
+}

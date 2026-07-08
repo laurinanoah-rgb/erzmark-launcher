@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { logout } from "../api/auth.js";
-import { getPlayStatus, installOrUpdate, launchGame } from "../api/game.js";
+import { getPlayStatus, installOrUpdate, launchGame, onGameExited, onGameStarted } from "../api/game.js";
 import LauncherUpdateBanner from "./LauncherUpdateBanner.jsx";
 import SidebarDock from "./SidebarDock.jsx";
 import SettingsScreen from "./SettingsScreen.jsx";
@@ -14,6 +14,8 @@ const STATE_LABELS = {
   update_available: "Update",
   ready: "Spielen",
 };
+
+const GAME_RUNNING_LABEL = "Spiel läuft…";
 
 const EMBER_COUNT = 10;
 
@@ -95,9 +97,32 @@ export default function MainScreen({ session, onLoggedOut }) {
   const [actionError, setActionError] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showSkinChanger, setShowSkinChanger] = useState(false);
+  const [gameRunning, setGameRunning] = useState(false);
 
   useEffect(() => {
     refreshStatus();
+  }, []);
+
+  // Läuft unabhängig vom Play-Button-Klick: der Rust-Backend meldet
+  // Start/Ende des Minecraft-Prozesses selbst (z. B. auch wenn das Spiel
+  // durch Verlassen des Servers automatisch beendet wird, siehe
+  // launch.rs/game_commands.rs – Quick-Play-Feature).
+  useEffect(() => {
+    let unlistenStarted;
+    let unlistenExited;
+    onGameStarted(() => setGameRunning(true)).then((fn) => {
+      unlistenStarted = fn;
+    });
+    onGameExited(() => {
+      setGameRunning(false);
+      refreshStatus();
+    }).then((fn) => {
+      unlistenExited = fn;
+    });
+    return () => {
+      unlistenStarted?.();
+      unlistenExited?.();
+    };
   }, []);
 
   async function refreshStatus() {
@@ -124,13 +149,15 @@ export default function MainScreen({ session, onLoggedOut }) {
   }
 
   async function handleMainButton() {
-    if (!status || busy) return;
+    if (!status || busy || gameRunning) return;
     setActionError(null);
 
     if (status.state === "ready") {
       setBusy(true);
       try {
         await launchGame();
+        // gameRunning wird über das "game-started"-Event gesetzt, sobald der
+        // Prozess wirklich läuft – busy hier nur für den kurzen Start-Moment.
       } catch (err) {
         setActionError(err?.message ?? String(err));
       } finally {
@@ -153,8 +180,12 @@ export default function MainScreen({ session, onLoggedOut }) {
     }
   }
 
-  const buttonLabel = status ? STATE_LABELS[status.state] ?? "Installieren" : "Lädt…";
-  const disabled = busy || !status || status.state === "error";
+  const buttonLabel = gameRunning
+    ? GAME_RUNNING_LABEL
+    : status
+    ? STATE_LABELS[status.state] ?? "Installieren"
+    : "Lädt…";
+  const disabled = busy || gameRunning || !status || status.state === "error";
   const percent =
     progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : null;
 
@@ -186,7 +217,7 @@ export default function MainScreen({ session, onLoggedOut }) {
             aria-label={busy && progress ? progress.label : buttonLabel}
           >
             <span className="erzmark-btn-play-inner">
-              <GemIcon spinning={busy} />
+              <GemIcon spinning={busy || gameRunning} />
               <span className="erzmark-btn-play-label">
                 {busy && progress ? progress.label : buttonLabel}
               </span>

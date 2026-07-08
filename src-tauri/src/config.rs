@@ -55,3 +55,22 @@ pub const LAUNCHER_NAME: &str = "Erzmark Launcher";
 /// MMOCore-Freundeslisten + Online-Status aus MySQL – der Launcher hat nie
 /// direkten Datenbankzugriff, siehe PLANNING.md).
 pub const ERZMARK_FRIENDS_API_URL: &str = "https://erzmark.de/launcher/friends.php";
+
+/// Read-only Online-Status-API (alte Datenquelle: `lastloginapi_players`).
+/// UNZUVERLÄSSIG – MMOCore vergibt pro MMOProfile (Charakter-Slot) eine
+/// eigene UUID, wodurch der echte Mojang-Account-Datensatz während des
+/// Spielens nicht aktualisiert wird (false-positive "offline" nach kurzer
+/// Zeit). Bleibt nur als totes Skript auf dem Server, wird vom Launcher
+/// nicht mehr angesprochen – siehe ERZMARK_NETWORK_STATUS_API_URL.
+#[allow(dead_code)]
+pub const ERZMARK_PLAYER_STATUS_API_URL: &str = "https://erzmark.de/launcher/player-status.php";
+
+/// Read-only Netzwerk-Status-API, backed by CloudNets eigener REST-API
+/// (`CloudNet-Rest`-Modul, `GET /player/online/{uuid}/exists`) statt der
+/// unzuverlässigen `lastloginapi_players`-Tabelle. Netzwerkweit korrekt und
+/// unabhängig von MMOProfiles, da CloudNet die echte Mojang-Account-UUID der
+/// Session trackt. Wird nach dem Spielstart periodisch abgefragt, um
+/// Minecraft automatisch zu beenden, sobald der Spieler das Erzmark-Netzwerk
+/// (CloudNet) komplett verlässt (Quick-Play beendet den Client dafür
+/// entgegen ursprünglicher Annahme NICHT automatisch).
+pub const ERZMARK_NETWORK_STATUS_API_URL: &str = "https://erzmark.de/launcher/network-status.php";

@@ -126,6 +126,51 @@ pub fn current_os_name() -> &'static str {
     }
 }
 
+/// Mojangs Bezeichner für die CPU-Architektur (wie in `os.arch`-Regeln
+/// verwendet). Wichtig v. a. für LWJGL-Natives unter Windows: dort listet
+/// die Versions-JSON separate Library-Einträge für x86/x86_64/arm64 mit
+/// jeweils gleich benannten Dateien (z. B. `lwjgl.dll`) – ohne Arch-Filter
+/// würden alle drei heruntergeladen und ins selbe Natives-Verzeichnis
+/// entpackt, wobei die zuletzt entpackte (oft die 32-Bit-Variante) die
+/// richtige 64-Bit-Datei überschreibt ("Platform/architecture mismatch").
+pub fn current_arch() -> &'static str {
+    if cfg!(target_arch = "x86_64") {
+        "x86_64"
+    } else if cfg!(target_arch = "x86") {
+        "x86"
+    } else if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else {
+        ""
+    }
+}
+
+/// Zusätzlich zu `rules_allow`: Windows-Natives-Libraries (LWJGL etc.) tragen
+/// in Mojangs Versions-JSON alle dieselbe generische `{"os":{"name":"windows"}}`-
+/// Regel – ob 32-Bit, 64-Bit oder ARM, steht nur im Namens-Klassifikator
+/// (`org.lwjgl:lwjgl:3.3.3:natives-windows-x86` vs. `...natives-windows` vs.
+/// `...natives-windows-arm64`). Ohne diesen zusätzlichen Filter landen alle
+/// drei im selben Natives-Ordner und überschreiben sich gegenseitig (z. B.
+/// überschreibt die 32-Bit-`lwjgl.dll` die 64-Bit-Version) – genau das
+/// Symptom "Platform/architecture mismatch" beim Start.
+pub fn library_matches_current_platform(lib_name: &str) -> bool {
+    let classifier = lib_name.rsplit(':').next().unwrap_or("");
+    if !classifier.starts_with("natives-windows") {
+        // Nur unter Windows gibt es mehrere Architektur-Varianten mit
+        // identischer Regel; Linux/macOS haben pro Bibliothek bislang nur
+        // einen Windows-unabhängigen Klassifikator, bleiben also unangetastet.
+        return true;
+    }
+    if current_os_name() != "windows" {
+        return true; // wird ohnehin schon über die OS-Regel gefiltert
+    }
+    match current_arch() {
+        "x86" => classifier == "natives-windows-x86",
+        "arm64" => classifier == "natives-windows-arm64",
+        _ => classifier == "natives-windows",
+    }
+}
+
 /// Wertet eine Mojang-typische Rules-Liste aus (Libraries UND
 /// JVM-/Game-Argumente teilen sich dieses Format:
 /// `[{"action":"allow"|"disallow","os":{"name":...},"features":{...}}]`).
@@ -138,11 +183,19 @@ pub fn rules_allow(rules: &Option<Vec<Value>>) -> bool {
     for rule in rules {
         let action = rule.get("action").and_then(|v| v.as_str()).unwrap_or("allow");
         let os_ok = match rule.get("os") {
-            Some(os) => os
-                .get("name")
-                .and_then(|v| v.as_str())
-                .map(|n| n == current_os_name())
-                .unwrap_or(true),
+            Some(os) => {
+                let name_ok = os
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .map(|n| n == current_os_name())
+                    .unwrap_or(true);
+                let arch_ok = os
+                    .get("arch")
+                    .and_then(|v| v.as_str())
+                    .map(|a| a == current_arch())
+                    .unwrap_or(true);
+                name_ok && arch_ok
+            }
             None => true,
         };
         let features_ok = rule.get("features").is_none();

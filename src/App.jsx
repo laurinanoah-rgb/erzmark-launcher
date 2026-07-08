@@ -3,9 +3,10 @@ import LoginScreen from "./components/LoginScreen.jsx";
 import MainScreen from "./components/MainScreen.jsx";
 import LoadingSpinner from "./components/LoadingSpinner.jsx";
 import UpdateVideoScreen from "./components/UpdateVideoScreen.jsx";
+import UpdateAvailableScreen from "./components/UpdateAvailableScreen.jsx";
 import { tryRestoreSession } from "./api/auth.js";
 import { DEV_MANIFEST } from "./api/devManifest.js";
-import { checkForLauncherUpdate, installLauncherUpdate } from "./api/appUpdater.js";
+import { checkForLauncherUpdate } from "./api/appUpdater.js";
 
 // Merkt sich lokal, welche Client-Version das Update-Video schon gezeigt
 // bekommen hat, damit es nur einmal pro neuem Update abgespielt wird (nicht
@@ -20,66 +21,66 @@ function shouldShowUpdateVideo() {
 }
 
 export default function App() {
-  // updateCheck | updating | checking | login | updateVideo | loggedIn
+  // updateCheck | updateAvailable | checking | login | updateVideo | loggedIn
   const [status, setStatus] = useState("updateCheck");
-  const [updateProgress, setUpdateProgress] = useState(null);
+  const [pendingUpdate, setPendingUpdate] = useState(null);
   const [session, setSession] = useState(null);
   const [restoreError, setRestoreError] = useState(null);
+
+  // Prüft/stellt die gespeicherte Login-Session wieder her und wählt den
+  // passenden Folge-Screen. Wird sowohl direkt beim Start aufgerufen (wenn
+  // kein Launcher-Update gefunden wurde) als auch nach einem Klick auf
+  // "Ohne Update fortfahren" im UpdateAvailableScreen.
+  function runSessionCheck() {
+    setStatus("checking");
+    tryRestoreSession()
+      .then((result) => {
+        if (result) {
+          setSession(result);
+          setStatus(shouldShowUpdateVideo() ? "updateVideo" : "loggedIn");
+        } else {
+          setStatus("login");
+        }
+      })
+      .catch((err) => {
+        setRestoreError(err?.message ?? String(err));
+        setStatus("login");
+      });
+  }
 
   useEffect(() => {
     let cancelled = false;
 
-    function proceedToSessionCheck() {
-      if (cancelled) return;
-      setStatus("checking");
-      tryRestoreSession()
-        .then((result) => {
-          if (cancelled) return;
-          if (result) {
-            setSession(result);
-            setStatus(shouldShowUpdateVideo() ? "updateVideo" : "loggedIn");
-          } else {
-            setStatus("login");
-          }
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          setRestoreError(err?.message ?? String(err));
-          setStatus("login");
-        });
-    }
-
-    // Beim Start zuerst prüfen, ob es ein neues Launcher-Update gibt – und
-    // falls ja, es automatisch ohne Rückfrage herunterladen/installieren
-    // (wie bei anderen bekannten Launchern). Erst danach geht's normal mit
-    // Login/Session weiter. Ist kein Update da oder der Update-Server nicht
+    // Beim Start zuerst prüfen, ob es ein neues Launcher-Update gibt. Falls
+    // ja, wird VOR Login/Startbildschirm ein zentrierter Update-Bildschirm
+    // gezeigt (UpdateAvailableScreen) – die Installation läuft erst nach
+    // Klick auf "Jetzt aktualisieren", nicht mehr automatisch im
+    // Hintergrund. Ist kein Update da oder der Update-Server nicht
     // erreichbar, wird der Start dadurch nicht blockiert.
     checkForLauncherUpdate()
-      .then(async (update) => {
+      .then((update) => {
         if (cancelled) return;
         if (!update) {
-          proceedToSessionCheck();
+          runSessionCheck();
           return;
         }
-        setStatus("updating");
-        try {
-          await installLauncherUpdate(update, setUpdateProgress);
-          // installLauncherUpdate startet die App am Ende neu (relaunch) –
-          // ab hier läuft normalerweise schon die neue Version.
-        } catch (err) {
-          // Update-Installation fehlgeschlagen (z.B. Berechtigungen) – nicht
-          // blockieren, normal weitermachen mit der aktuellen Version.
-          if (!cancelled) proceedToSessionCheck();
-        }
+        setPendingUpdate(update);
+        setStatus("updateAvailable");
       })
       .catch(() => {
-        proceedToSessionCheck();
+        if (!cancelled) runSessionCheck();
       });
 
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function handleContinueWithoutUpdate() {
+    setPendingUpdate(null);
+    runSessionCheck();
+  }
 
   function handleLoggedIn(info) {
     setSession(info);
@@ -99,11 +100,10 @@ export default function App() {
   return (
     <div className="erzmark-app">
       {status === "updateCheck" && <LoadingSpinner label="Suche nach Updates…" />}
-      {status === "updating" && (
-        <LoadingSpinner
-          label={`Update wird installiert${
-            updateProgress != null ? ` – ${updateProgress}%` : "…"
-          }`}
+      {status === "updateAvailable" && pendingUpdate && (
+        <UpdateAvailableScreen
+          update={pendingUpdate}
+          onContinueWithoutUpdate={handleContinueWithoutUpdate}
         />
       )}
       {status === "checking" && <LoadingSpinner label="Sitzung wird geprüft…" />}
