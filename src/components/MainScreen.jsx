@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { logout } from "../api/auth.js";
 import { getPlayStatus, installOrUpdate, launchGame, onGameExited, onGameStarted } from "../api/game.js";
+import { getCurrentSkinUrl } from "../api/skin.js";
 import LauncherUpdateBanner from "./LauncherUpdateBanner.jsx";
 import SidebarDock from "./SidebarDock.jsx";
 import SettingsScreen from "./SettingsScreen.jsx";
 import BossEventCountdown from "./BossEventCountdown.jsx";
 import SkinChangerScreen from "./SkinChangerScreen.jsx";
+import SkinMirror from "./SkinMirror.jsx";
+import ActiveCharacterCard from "./ActiveCharacterCard.jsx";
 
 // Beschriftung des Hauptbuttons je nach Backend-Status (siehe
 // install.rs::PlayStatus – "state" ist einer von diesen drei plus "error").
@@ -98,9 +101,25 @@ export default function MainScreen({ session, onLoggedOut }) {
   const [showSettings, setShowSettings] = useState(false);
   const [showSkinChanger, setShowSkinChanger] = useState(false);
   const [gameRunning, setGameRunning] = useState(false);
+  const [heroSkinUrl, setHeroSkinUrl] = useState(null);
 
   useEffect(() => {
     refreshStatus();
+  }, []);
+
+  // Eigener Skin groß im Hintergrund des Hauptbildschirms, wie der
+  // Charakter-Hero-Render auf erzmark.de – rein dekorativ, blockiert nichts,
+  // falls die Skin-API (noch) nicht erreichbar ist.
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentSkinUrl()
+      .then((url) => {
+        if (!cancelled) setHeroSkinUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Läuft unabhängig vom Play-Button-Klick: der Rust-Backend meldet
@@ -195,8 +214,11 @@ export default function MainScreen({ session, onLoggedOut }) {
       <LauncherUpdateBanner />
 
       <header className="erzmark-header">
-        <div className="erzmark-sigil">
-          <div className="erzmark-logo erzmark-logo-small" />
+        <div className="erzmark-header-brand">
+          <div className="erzmark-sigil">
+            <div className="erzmark-logo erzmark-logo-small" />
+          </div>
+          <span className="erzmark-wordmark">Erzmark</span>
         </div>
         <div className="erzmark-account-plaque">
           <span className="erzmark-account-name">{session?.username}</span>
@@ -207,20 +229,37 @@ export default function MainScreen({ session, onLoggedOut }) {
       </header>
 
       <div className="erzmark-body">
+        <BossEventCountdown />
+
         <main className="erzmark-main-content">
-          <BossEventCountdown />
+          <div className="erzmark-hero-stage">
+            <span className="erzmark-hero-name">{session?.username}</span>
+
+            {heroSkinUrl && (
+              <div className="erzmark-hero-skin" aria-hidden="true">
+                <SkinMirror skinUrl={heroSkinUrl} width={280} height={420} />
+              </div>
+            )}
+
+            <ActiveCharacterCard />
+          </div>
 
           <button
-            className="erzmark-btn-play"
+            className="erzmark-btn-launch"
             onClick={handleMainButton}
             disabled={disabled}
             aria-label={busy && progress ? progress.label : buttonLabel}
           >
-            <span className="erzmark-btn-play-inner">
-              <GemIcon spinning={busy || gameRunning} />
-              <span className="erzmark-btn-play-label">
+            <GemIcon spinning={busy || gameRunning} />
+            <span className="erzmark-btn-launch-text">
+              <span className="erzmark-btn-launch-label">
                 {busy && progress ? progress.label : buttonLabel}
               </span>
+              {!busy && status?.latest_client_version && (
+                <span className="erzmark-btn-launch-sub">
+                  Erzmark Fabric {status.minecraft_version}
+                </span>
+              )}
             </span>
           </button>
 
@@ -233,12 +272,6 @@ export default function MainScreen({ session, onLoggedOut }) {
             </div>
           )}
           {busy && progress && percent != null && <p className="erzmark-hint">{percent}%</p>}
-
-          {!busy && status?.latest_client_version && (
-            <span className="erzmark-version-stamp">
-              Version {status.latest_client_version} · Minecraft {status.minecraft_version}
-            </span>
-          )}
 
           {statusError && <p className="erzmark-error">{statusError}</p>}
           {actionError && <p className="erzmark-error">{actionError}</p>}

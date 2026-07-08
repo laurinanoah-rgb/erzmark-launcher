@@ -2,6 +2,7 @@ import { useState } from "react";
 import NewsFeed from "./NewsFeed.jsx";
 import FriendsList from "./FriendsList.jsx";
 import ScreenshotGallery from "./ScreenshotGallery.jsx";
+import CharacterProfiles from "./CharacterProfiles.jsx";
 
 function NewsTabIcon() {
   return (
@@ -33,9 +34,19 @@ function GalleryTabIcon() {
   );
 }
 
+function ProfilesTabIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M12 2 L19 8 L12 22 L5 8 Z" />
+      <path d="M9 8h6" />
+    </svg>
+  );
+}
+
 const TABS = [
   { id: "news", label: "Neuigkeiten", Icon: NewsTabIcon },
   { id: "friends", label: "Freunde", Icon: FriendsTabIcon },
+  { id: "profiles", label: "Spielstände", Icon: ProfilesTabIcon },
   { id: "gallery", label: "Galerie", Icon: GalleryTabIcon },
 ];
 
@@ -52,12 +63,6 @@ export default function SidebarDock() {
 
   return (
     <div className="erzmark-dock">
-      <div className="erzmark-dock-panel" key={active}>
-        {active === "news" && <NewsFeed />}
-        {active === "friends" && <FriendsList onOnlineCountChange={setFriendsOnline} />}
-        {active === "gallery" && <ScreenshotGallery />}
-      </div>
-
       <nav className="erzmark-dock-rail" aria-label="Widget-Auswahl">
         {TABS.map(({ id, label, Icon }) => (
           <button
@@ -70,12 +75,20 @@ export default function SidebarDock() {
             aria-pressed={active === id}
           >
             <Icon />
+            <span className="erzmark-dock-tab-label">{label}</span>
             {id === "friends" && friendsOnline > 0 && (
               <span className="erzmark-dock-tab-badge">{friendsOnline}</span>
             )}
           </button>
         ))}
       </nav>
+
+      <div className="erzmark-dock-panel" key={active}>
+        {active === "news" && <NewsFeed />}
+        {active === "friends" && <FriendsList onOnlineCountChange={setFriendsOnline} />}
+        {active === "profiles" && <CharacterProfiles />}
+        {active === "gallery" && <ScreenshotGallery />}
+      </div>
     </div>
   );
 }

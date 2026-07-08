@@ -57,11 +57,15 @@ pub const LAUNCHER_NAME: &str = "Erzmark Launcher";
 pub const ERZMARK_FRIENDS_API_URL: &str = "https://erzmark.de/launcher/friends.php";
 
 /// Read-only Online-Status-API (alte Datenquelle: `lastloginapi_players`).
-/// UNZUVERLÄSSIG – MMOCore vergibt pro MMOProfile (Charakter-Slot) eine
-/// eigene UUID, wodurch der echte Mojang-Account-Datensatz während des
-/// Spielens nicht aktualisiert wird (false-positive "offline" nach kurzer
-/// Zeit). Bleibt nur als totes Skript auf dem Server, wird vom Launcher
-/// nicht mehr angesprochen – siehe ERZMARK_NETWORK_STATUS_API_URL.
+/// UNZUVERLÄSSIG – dieses (von MMOCore unabhängige) Plugin vergibt pro
+/// Verbindung/Profil-Auswahl offenbar eigene synthetische UUID-Zeilen,
+/// wodurch der echte Mojang-Account-Datensatz während des Spielens nicht
+/// aktualisiert wird (false-positive "offline" nach kurzer Zeit). MMOCores
+/// eigene Tabelle (`mmocore_playerdata`, siehe `profiles.rs`) nutzt dagegen
+/// korrekt eine Zeile pro echter Account-UUID – das UUID-Problem liegt also
+/// nur bei diesem einen Plugin. Bleibt nur als totes Skript auf dem Server,
+/// wird vom Launcher nicht mehr angesprochen – siehe
+/// ERZMARK_NETWORK_STATUS_API_URL.
 #[allow(dead_code)]
 pub const ERZMARK_PLAYER_STATUS_API_URL: &str = "https://erzmark.de/launcher/player-status.php";
 
@@ -74,3 +78,10 @@ pub const ERZMARK_PLAYER_STATUS_API_URL: &str = "https://erzmark.de/launcher/pla
 /// (CloudNet) komplett verlässt (Quick-Play beendet den Client dafür
 /// entgegen ursprünglicher Annahme NICHT automatisch).
 pub const ERZMARK_NETWORK_STATUS_API_URL: &str = "https://erzmark.de/launcher/network-status.php";
+
+/// Read-only Spielstände-API (MMOCore-Klassen/-Profile: aktive Klasse +
+/// alle weiteren, per `class_info` gespeicherten Klassen desselben Accounts).
+/// Nutzt dieselbe `mmocore_playerdata`-Tabelle wie die Freundesliste, aber
+/// direkt über die echte Account-UUID als Primärschlüssel – siehe
+/// `profiles.rs`.
+pub const ERZMARK_PROFILES_API_URL: &str = "https://erzmark.de/launcher/profiles.php";

@@ -9,6 +9,8 @@ mod game;
 mod game_commands;
 mod news;
 mod news_commands;
+mod profiles;
+mod profiles_commands;
 mod settings;
 mod settings_commands;
 mod skin_commands;
@@ -41,6 +43,7 @@ pub fn run() {
             settings_commands::reset_installation,
             events_commands::get_boss_event,
             friends_commands::get_friends,
+            profiles_commands::get_character_profiles,
             skin_commands::get_current_skin_url,
             skin_commands::set_skin_url,
             skin_commands::upload_skin_file,

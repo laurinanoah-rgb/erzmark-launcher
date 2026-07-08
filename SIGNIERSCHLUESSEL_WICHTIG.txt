@@ -1,0 +1,37 @@
+ERZMARK LAUNCHER — TAURI UPDATER SIGNIERSCHLÜSSEL
+====================================================
+Generiert am: 08.07.2026
+Zweck: Signieren der Update-Pakete für den Tauri-Auto-Updater
+       (verhindert, dass gefälschte/manipulierte Updates installiert werden).
+
+WICHTIG: Diese Datei enthält ein Geheimnis. Sicher aufbewahren, nicht
+weitergeben, nicht in ein öffentliches Repository committen (liegt zwar
+im .gitignore unter *.key, aber diese .txt-Datei NICHT versehentlich
+mit hochladen).
+
+----------------------------------------------------
+PRIVATE KEY (geheim halten!)
+----------------------------------------------------
+dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5ZmhsTytKc1o2NmphUXpXTUt2SE5sZnF2b0NNUFl3TU40allUdkViTFd0SUFBQkFBQUFBQUFBQUFBQUlBQUFBQXYzL1lPdDNYTlhWbkEzbHE5cVBNakJTQVZlSWF3RytCb0hJZ3FoRW5hKzhjYW9Ya1UrT3dtQlg3ZUhTZDRSZ0RhZkRlOTRNTUdqS280blNVNmhWSGtqcW5MaU5nNXlKd21HcDFiY21QMUx3SEZiTDNKYVNleGZDNTBvaXFKOEl5empJakJTaGNJQjQ9Cg==
+
+----------------------------------------------------
+PRIVATE KEY PASSWORT
+----------------------------------------------------
+(leer / kein Passwort gesetzt)
+
+----------------------------------------------------
+PUBLIC KEY (unkritisch, steht auch in tauri.conf.json)
+----------------------------------------------------
+dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyMjczQzYxQ0MxQjQwRjAKUldUd1FCdk1ZVHduWWpSY0pRVEl5ZVZHeTNTMUUrWXJveFdpTjF2dHYzT1NiQWp2d2l4ck8rTUkK
+
+----------------------------------------------------
+WOFÜR GEBRAUCHT (GitHub Repo Secrets)
+----------------------------------------------------
+Repo: laurinanoah-rgb/erzmark-launcher
+Settings → Secrets and variables → Actions
+
+- TAURI_SIGNING_PRIVATE_KEY           = der Private-Key-String oben
+- TAURI_SIGNING_PRIVATE_KEY_PASSWORD  = leer lassen (kein Passwort)
+
+Der Public Key ist bereits in src-tauri/tauri.conf.json unter
+plugins.updater.pubkey eingetragen.

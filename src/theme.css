@@ -246,16 +246,19 @@ body {
   }
 }
 
-/* Geschmiedete Kopfleiste mit dünner Golderz-Ader als unterer Rand. */
+/* Geschmiedete Kopfleiste mit dünner Golderz-Ader als unterer Rand. Deutlich
+   sichtbarer Panel-Ton statt fast-schwarzem Verlauf, damit die Leiste als
+   echtes UI-Element statt als leerer Rand über der Bühne wirkt (näher an
+   der Nav-Leiste von erzmark.de). */
 .erzmark-header {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
-  background: linear-gradient(180deg, var(--erzmark-color-bg-elevated), var(--erzmark-color-bg));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 18px rgba(0, 0, 0, 0.35);
+  padding: 16px 28px;
+  background: linear-gradient(180deg, var(--erzmark-color-panel), var(--erzmark-color-bg-elevated));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
 .erzmark-header::after {
@@ -272,6 +275,22 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.erzmark-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.erzmark-wordmark {
+  font-family: var(--erzmark-font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--erzmark-color-gold);
+  text-shadow: 0 0 14px rgba(255, 185, 0, 0.35);
 }
 
 /* Rundes Siegel um das kleine Logo, wie ein in Metall geprägtes Wappen. */
@@ -316,24 +335,80 @@ body {
   min-height: 0;
 }
 
+/* Hero-zentriertes Layout (inspiriert von modernen Launchern wie NoRisk
+   Client): der Skin ist der klare Hauptdarsteller in der Bildmitte, alles
+   andere ordnet sich darunter/darüber unter – statt vieler gleichrangiger,
+   verstreuter Elemente. */
 .erzmark-main-content {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 22px;
+  overflow: hidden;
+  padding: 0 32px;
 }
 
-/* ---- Sidebar: Widget-Dock ---- */
+.erzmark-hero-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.erzmark-hero-name {
+  font-family: var(--erzmark-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--erzmark-color-text);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  margin-bottom: -12px;
+  z-index: 1;
+}
+
+/* Eigener Skin groß als Hero-Render, wie der Charakter im Mittelpunkt
+   moderner Launcher – mit sanftem Bühnenlicht-Glow dahinter und nach oben
+   ausgeblendet statt hart abgeschnitten. */
+.erzmark-hero-skin {
+  position: relative;
+  z-index: 0;
+  opacity: 0.97;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.95) 18%, rgba(0, 0, 0, 0.95) 100%);
+  mask-image: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.95) 18%, rgba(0, 0, 0, 0.95) 100%);
+}
+
+.erzmark-hero-skin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  width: 220px;
+  height: 220px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(255, 185, 0, 0.3), rgba(66, 183, 250, 0.12) 55%, transparent 75%);
+  filter: blur(12px);
+  z-index: -1;
+}
+
+/* ---- Sidebar: echtes Karten-Panel statt transparenter Fläche, damit es
+   sich wie ein eigenständiges Dashboard-Modul (erzmark.de-Optik) statt wie
+   ein loser Rand liest. ---- */
 
 .erzmark-sidebar {
-  width: 340px;
+  width: 360px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 20px 14px 20px 18px;
-  border-left: 1px solid rgba(255, 185, 0, 0.12);
+  margin: 14px 14px 14px 0;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(45, 54, 67, 0.55), rgba(23, 29, 38, 0.75));
+  border: 1px solid rgba(255, 185, 0, 0.14);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
   overflow: hidden;
 }
 
@@ -344,20 +419,20 @@ body {
   flex-shrink: 0;
 }
 
-/* ---- Widget-Dock: schmale Icon-Leiste + ein großes, wechselndes Panel
-   statt alle Widgets gestapelt untereinander – bewusst reduziert & modern. ---- */
+/* ---- Widget-Dock: beschriftete Tab-Leiste oben + ein großes, wechselndes
+   Panel darunter statt aller Widgets gestapelt untereinander. ---- */
 
 .erzmark-dock {
   display: flex;
-  flex-direction: row;
-  gap: 12px;
+  flex-direction: column;
+  gap: 14px;
   height: 100%;
   min-height: 0;
 }
 
 .erzmark-dock-panel {
   flex: 1;
-  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   animation: erzmark-dock-fade-in 0.22s ease;
 }
@@ -365,65 +440,75 @@ body {
 @keyframes erzmark-dock-fade-in {
   from {
     opacity: 0;
-    transform: translateX(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
 .erzmark-dock-rail {
   flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding-top: 2px;
+  flex-direction: row;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 185, 0, 0.14);
 }
 
 .erzmark-dock-tab {
   position: relative;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(45, 54, 67, 0.4);
-  border: 1px solid rgba(255, 185, 0, 0.16);
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--erzmark-color-text-muted);
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease,
-    box-shadow 0.15s ease, transform 0.1s ease;
+    box-shadow 0.15s ease;
 }
 
 .erzmark-dock-tab svg {
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
+}
+
+.erzmark-dock-tab-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-align: center;
+  line-height: 1.15;
 }
 
 .erzmark-dock-tab:hover {
-  border-color: rgba(255, 185, 0, 0.4);
+  background: rgba(45, 54, 67, 0.4);
   color: var(--erzmark-color-text);
-  transform: translateY(-1px);
 }
 
 .erzmark-dock-tab.is-active {
-  background: linear-gradient(145deg, rgba(255, 185, 0, 0.26), rgba(255, 185, 0, 0.06));
-  border-color: var(--erzmark-color-gold);
+  background: linear-gradient(145deg, rgba(255, 185, 0, 0.22), rgba(255, 185, 0, 0.05));
+  border-color: rgba(255, 185, 0, 0.4);
   color: var(--erzmark-color-gold);
-  box-shadow: 0 0 14px rgba(255, 185, 0, 0.35);
+  box-shadow: 0 0 12px rgba(255, 185, 0, 0.2);
 }
 
 .erzmark-dock-tab-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
-  border-radius: 9px;
+  top: 2px;
+  right: 10%;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
   background: #3ddc84;
   color: #0f131a;
   font-size: 9px;
@@ -650,6 +735,107 @@ body {
   border-radius: 8px;
 }
 
+/* ---- Spielstände (MMOCore-Profile) ---- */
+
+.erzmark-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.erzmark-profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(45, 54, 67, 0.35);
+  border: 1px solid rgba(255, 185, 0, 0.18);
+}
+
+.erzmark-profile-card-active {
+  border-color: rgba(255, 185, 0, 0.4);
+}
+
+.erzmark-profile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.erzmark-profile-class {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--erzmark-color-text);
+}
+
+.erzmark-profile-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f131a;
+  background: var(--erzmark-color-gold);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.erzmark-profile-level {
+  font-size: 12px;
+  color: var(--erzmark-color-text-muted);
+  font-weight: 600;
+}
+
+.erzmark-profile-stats {
+  display: flex;
+  gap: 10px;
+}
+
+.erzmark-profile-stat-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.erzmark-profile-stat-chip-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--erzmark-color-text);
+}
+
+.erzmark-profile-stat-chip-label {
+  font-size: 10px;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-profile-others {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.erzmark-profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(45, 54, 67, 0.22);
+  border: 1px solid rgba(255, 185, 0, 0.1);
+}
+
+.erzmark-profile-row-class {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--erzmark-color-text);
+}
+
+.erzmark-profile-row-level {
+  font-size: 11px;
+  color: var(--erzmark-color-text-muted);
+}
+
 .erzmark-gallery-folder-btn {
   font-size: 11px;
   color: var(--erzmark-color-text-muted);
@@ -790,53 +976,52 @@ body {
   -webkit-box-orient: vertical;
 }
 
-/* Sechseckiger "Runenstein"-Button: äußere Schicht = Golderz-Rahmen,
-   innere Schicht = dunkle Steinfläche mit Inhalt. Glow via drop-shadow,
-   da box-shadow bei clip-path-Formen nicht der Kontur folgt. */
-.erzmark-btn-play {
+/* Breiter "Launch"-Button (inspiriert von modernen Launchern wie NoRisk
+   Client) statt Sechseck – klare Rechteck-Pille mit Icon + zweizeiligem
+   Label (Hauptlabel + Versions-Unterzeile), wirkt aufgeräumter/moderner als
+   eine dekorative Sonderform. */
+.erzmark-btn-launch {
   position: relative;
-  width: 232px;
-  height: 232px;
-  padding: 7px;
-  border: none;
-  cursor: pointer;
-  background: linear-gradient(160deg, var(--erzmark-color-gold), #8a5a00 75%);
-  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
-  filter: drop-shadow(0 0 0 rgba(255, 185, 0, 0));
-  transition: transform 0.15s ease, filter 0.25s ease;
-}
-
-.erzmark-btn-play:not(:disabled):hover {
-  transform: scale(1.025);
-  filter: drop-shadow(0 0 20px rgba(255, 185, 0, 0.5));
-}
-
-.erzmark-btn-play:not(:disabled):active {
-  transform: scale(0.985);
-}
-
-.erzmark-btn-play:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.erzmark-btn-play-inner {
-  width: 100%;
-  height: 100%;
-  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
-  background: radial-gradient(circle at 50% 32%, var(--erzmark-color-panel), var(--erzmark-color-bg-elevated) 85%);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 12px;
-  text-align: center;
+  gap: 14px;
+  min-width: 280px;
+  padding: 14px 30px;
+  border: 1px solid rgba(255, 185, 0, 0.5);
+  border-radius: 14px;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(45, 54, 67, 0.9), rgba(23, 29, 38, 0.95));
+  box-shadow: 0 0 0 rgba(255, 185, 0, 0), 0 10px 24px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+}
+
+.erzmark-btn-launch:not(:disabled):hover {
+  transform: translateY(-2px);
+  border-color: var(--erzmark-color-gold);
+  box-shadow: 0 0 22px rgba(255, 185, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.erzmark-btn-launch:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.erzmark-btn-launch:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.erzmark-btn-launch-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .erzmark-btn-play-icon {
-  width: 34px;
-  height: 34px;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
   color: var(--erzmark-color-gold);
   filter: drop-shadow(0 0 5px rgba(255, 185, 0, 0.5));
 }
@@ -845,28 +1030,57 @@ body {
   animation: erzmark-spin 1.1s linear infinite;
 }
 
-.erzmark-btn-play-label {
+.erzmark-btn-launch-label {
   font-weight: 800;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--erzmark-color-text);
-  line-height: 1.3;
-  max-width: 150px;
+  line-height: 1.2;
 }
 
-/* Versions-Stempel wie eine geprägte Metallplakette. */
-.erzmark-version-stamp {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 18px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 185, 0, 0.3);
-  background: rgba(45, 54, 67, 0.4);
+.erzmark-btn-launch-sub {
+  font-size: 11px;
   color: var(--erzmark-color-text-muted);
+}
+
+/* Kompakte Charakter-Karte direkt unter dem Spielen-Button (siehe
+   ActiveCharacterCard.jsx) – bewusst schmal & unaufdringlich, im gleichen
+   Dashboard-Karten-Stil wie erzmark.de. */
+.erzmark-active-char-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(66, 183, 250, 0.35);
+  background: rgba(45, 54, 67, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.erzmark-active-char-class {
   font-size: 12px;
-  letter-spacing: 0.03em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--erzmark-color-gold);
+}
+
+.erzmark-active-char-level {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--erzmark-color-text-muted);
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.erzmark-active-char-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--erzmark-color-text-muted);
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .erzmark-secondary-actions {
@@ -1132,6 +1346,16 @@ body {
 
 .erzmark-skin-mirror:active {
   cursor: grabbing;
+}
+
+/* Hero-Variante im Hauptbildschirm-Hintergrund: kein Panel-Rahmen, soll
+   frei im Raum stehen statt in einer Box zu stecken (siehe .erzmark-hero-skin
+   in MainScreen.jsx). */
+.erzmark-hero-skin .erzmark-skin-mirror {
+  border: none;
+  background: none;
+  box-shadow: none;
+  cursor: default;
 }
 
 .erzmark-skin-url-input {
