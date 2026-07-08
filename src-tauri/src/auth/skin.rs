@@ -96,5 +96,10 @@ pub fn active_skin_url(skins: &[serde_json::Value]) -> Option<String> {
         .iter()
         .find(|s| s.get("state").and_then(|v| v.as_str()) == Some("ACTIVE"))
         .and_then(|s| s.get("url").and_then(|v| v.as_str()))
-        .map(|s| s.to_string())
+        // Mojangs Session-Server liefert die Textur-URL oft als reines
+        // `http://textures.minecraft.net/...` zurück. Unsere CSP (img-src)
+        // erlaubt aus Sicherheitsgründen nur https – ohne diese Normalisierung
+        // wird das Bild von der Webview stillschweigend geblockt (keine
+        // Fehlermeldung, der Skin bleibt einfach unsichtbar).
+        .map(|s| s.replacen("http://", "https://", 1))
 }
