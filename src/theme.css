@@ -208,6 +208,24 @@ body {
   overflow: hidden;
 }
 
+/* Versionsnummer, dezent aber gut lesbar unten links im Launcher-Fenster. */
+.erzmark-version-corner {
+  position: absolute;
+  left: 14px;
+  bottom: 10px;
+  z-index: 3;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--erzmark-color-text-muted);
+  background: rgba(15, 19, 26, 0.55);
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Schwebende Glut-Partikel im Hintergrund, wie Funken aus einer Erzschmiede. */
 .erzmark-embers {
   position: absolute;
@@ -332,6 +350,17 @@ body {
   z-index: 1;
   flex: 1;
   display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Reihe unter dem Cooldown-Balken: linke Sidebar / Hauptbereich / rechte
+   Sidebar nebeneinander – vorher war das direkt .erzmark-body, jetzt ein
+   eigener Flex-Container, damit der Cooldown-Balken oben drüber liegen kann. */
+.erzmark-columns {
+  position: relative;
+  flex: 1;
+  display: flex;
   min-height: 0;
 }
 
@@ -412,6 +441,12 @@ body {
   overflow: hidden;
 }
 
+/* Spiegelverkehrtes Gegenstück für die linke "Soziales"-Spalte (Freunde/
+   Gilde/Karte) – gleiche Optik, nur der Außenabstand ist gespiegelt. */
+.erzmark-sidebar-left {
+  margin: 14px 0 14px 14px;
+}
+
 .erzmark-sidebar-divider {
   height: 1px;
   margin: 18px 0;
@@ -446,6 +481,60 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Platzhalter-Panel für noch nicht existierende Features (Gilde, Karte). */
+.erzmark-coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  height: 100%;
+  min-height: 220px;
+  padding: 24px 16px;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-coming-soon-icon {
+  width: 34px;
+  height: 34px;
+  color: var(--erzmark-color-gold);
+  opacity: 0.7;
+}
+
+.erzmark-coming-soon-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.erzmark-coming-soon-title {
+  margin: 0;
+  font-family: var(--erzmark-font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--erzmark-color-text);
+}
+
+.erzmark-coming-soon-desc {
+  margin: 0;
+  max-width: 240px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.erzmark-coming-soon-badge {
+  margin-top: 4px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 185, 0, 0.3);
+  background: rgba(255, 185, 0, 0.08);
+  color: var(--erzmark-color-gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .erzmark-dock-rail {
@@ -853,25 +942,28 @@ body {
   border-color: rgba(255, 185, 0, 0.6);
 }
 
-/* ---- Event-Countdown: kompakte Plaque oben links, statt zentraler Blickfang
-   – so bleibt der Spielen-Button klar die Bühne, das Event ist "immer da"
-   im Blick, ohne zu dominieren. Zierschrift (Cinzel) für den RPG-Touch. ---- */
+/* ---- Event-Countdown: durchgehende Leiste oben, von der linken bis zur
+   rechten Spalte gestreckt (statt Ecken-Plaque) – liegt als eigene Zeile
+   über den drei Spalten (.erzmark-columns), überlappt also nichts.
+   Zierschrift (Cinzel) für den RPG-Touch. ---- */
 
 .erzmark-event-corner {
-  position: absolute;
-  top: 20px;
-  left: 24px;
+  position: relative;
   z-index: 2;
+  display: flex;
+  padding: 14px 14px 0;
 }
 
 .erzmark-boss-countdown {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 16px 9px 12px;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  padding: 11px 20px;
   background: linear-gradient(145deg, rgba(23, 29, 38, 0.92), rgba(45, 54, 67, 0.55));
   border: 1px solid rgba(255, 185, 0, 0.32);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   font: inherit;
   text-align: left;
@@ -899,17 +991,31 @@ body {
 
 .erzmark-boss-countdown-text {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: 14px;
 }
 
 .erzmark-boss-countdown-label {
   font-family: var(--erzmark-font-display);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--erzmark-color-gold);
+  padding-right: 14px;
+  border-right: 1px solid rgba(255, 185, 0, 0.25);
+}
+
+.erzmark-boss-countdown-description {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  color: var(--erzmark-color-text-muted);
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .erzmark-boss-countdown-digits {
@@ -964,17 +1070,6 @@ body {
   color: var(--erzmark-color-text-muted);
 }
 
-.erzmark-boss-countdown-description {
-  max-width: 220px;
-  margin: 1px 0 0;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--erzmark-color-text-muted);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
 
 /* Breiter "Launch"-Button (inspiriert von modernen Launchern wie NoRisk
    Client) statt Sechseck – klare Rechteck-Pille mit Icon + zweizeiligem
@@ -1087,10 +1182,100 @@ body {
   position: relative;
   z-index: 1;
   display: flex;
-  justify-content: center;
-  gap: 28px;
+  align-items: center;
   padding: 18px;
   border-top: 1px solid rgba(255, 185, 0, 0.12);
+}
+
+/* Drei-Zonen-Aufbau: linker Platzhalter + zentrierte Rune-Buttons + rechte
+   Social-Icons – der leere linke Spacer sorgt dafür, dass die mittlere
+   Gruppe trotz der rechten Icons optisch zentriert bleibt. */
+.erzmark-secondary-spacer {
+  flex: 1;
+}
+
+.erzmark-secondary-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+}
+
+.erzmark-social-links {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+  padding-right: 4px;
+}
+
+.erzmark-social-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(45, 54, 67, 0.35);
+  border: 1px solid rgba(255, 185, 0, 0.3);
+  color: var(--erzmark-color-text);
+  cursor: pointer;
+  opacity: 0.92;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.erzmark-social-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* Android-Icon deutlich größer/auffälliger als Discord/YouTube, damit der
+   "Bald verfügbar"-Hinweis nicht in der Reihe untergeht. */
+.erzmark-social-btn-soon {
+  width: 56px;
+  height: 56px;
+  border-color: rgba(255, 185, 0, 0.55);
+  background: rgba(255, 185, 0, 0.1);
+}
+
+.erzmark-social-btn-soon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.erzmark-social-btn:not(:disabled):hover {
+  opacity: 1;
+  color: var(--erzmark-color-gold);
+  border-color: rgba(255, 185, 0, 0.6);
+  transform: translateY(-1px);
+}
+
+.erzmark-social-btn-soon {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.erzmark-social-btn-soon:hover {
+  transform: none;
+}
+
+.erzmark-social-soon-badge {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--erzmark-color-gold);
+  background: rgba(15, 19, 26, 0.95);
+  border: 1px solid rgba(255, 185, 0, 0.4);
+  border-radius: 999px;
+  padding: 2px 7px;
+  white-space: nowrap;
 }
 
 .erzmark-rune-btn {

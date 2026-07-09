@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { logout } from "../api/auth.js";
 import { getPlayStatus, installOrUpdate, launchGame, onGameExited, onGameStarted } from "../api/game.js";
 import { getCurrentSkinUrl } from "../api/skin.js";
+import { openExternalUrl } from "../api/events.js";
 import LauncherUpdateBanner from "./LauncherUpdateBanner.jsx";
 import SidebarDock from "./SidebarDock.jsx";
+import SocialDock from "./SocialDock.jsx";
 import SettingsScreen from "./SettingsScreen.jsx";
 import BossEventCountdown from "./BossEventCountdown.jsx";
 import SkinChangerScreen from "./SkinChangerScreen.jsx";
 import SkinMirror from "./SkinMirror.jsx";
 import ActiveCharacterCard from "./ActiveCharacterCard.jsx";
+
+// TODO: echte Links eintragen, sobald vorhanden (Discord-Invite, YouTube-Kanal).
+const DISCORD_URL = "https://discord.gg/erzmark";
+const YOUTUBE_URL = "https://youtube.com/@erzmark";
 
 // Beschriftung des Hauptbuttons je nach Backend-Status (siehe
 // install.rs::PlayStatus – "state" ist einer von diesen drei plus "error").
@@ -91,6 +98,35 @@ function SettingsIcon() {
   );
 }
 
+function DiscordIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20.3 5.4A17.5 17.5 0 0 0 15.9 4c-.2.4-.4.9-.6 1.3a16 16 0 0 0-4.7 0A9 9 0 0 0 10 4a17.6 17.6 0 0 0-4.4 1.4C2.9 9.1 2.2 12.7 2.5 16.3a17.7 17.7 0 0 0 5.4 2.7c.4-.6.8-1.2 1.1-1.9-.6-.2-1.2-.5-1.7-.9l.4-.3c3.3 1.5 6.9 1.5 10.2 0l.4.3c-.5.4-1.1.7-1.7.9.3.7.7 1.3 1.1 1.9a17.6 17.6 0 0 0 5.4-2.7c.4-4.2-.6-7.7-2.8-10.9ZM9.7 14.2c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm4.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z" />
+    </svg>
+  );
+}
+
+function YoutubeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M21.6 7.2s-.2-1.5-.8-2.1c-.8-.8-1.7-.8-2.1-.9C15.9 4 12 4 12 4h0s-3.9 0-6.7.2c-.4 0-1.3.1-2.1.9-.6.6-.8 2.1-.8 2.1S2.2 9 2.2 10.7v1.6c0 1.7.2 3.5.2 3.5s.2 1.5.8 2.1c.8.8 1.8.8 2.3.9 1.7.2 6.5.2 6.5.2s3.9 0 6.7-.2c.4 0 1.3-.1 2.1-.9.6-.6.8-2.1.8-2.1s.2-1.7.2-3.5v-1.6c0-1.7-.2-3.5-.2-3.5ZM9.9 14.6V8.9l5.4 2.9-5.4 2.8Z" />
+    </svg>
+  );
+}
+
+function AppDownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      {/* Handy-Umriss */}
+      <rect x="6.2" y="2.5" width="11.6" height="19" rx="2.2" />
+      <line x1="10.2" y1="19.1" x2="13.8" y2="19.1" />
+      {/* Download-Pfeil im Bildschirmbereich */}
+      <path d="M12 6.5v7" />
+      <path d="M9 10.7l3 3 3-3" />
+    </svg>
+  );
+}
+
 export default function MainScreen({ session, onLoggedOut }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [status, setStatus] = useState(null);
@@ -102,9 +138,18 @@ export default function MainScreen({ session, onLoggedOut }) {
   const [showSkinChanger, setShowSkinChanger] = useState(false);
   const [gameRunning, setGameRunning] = useState(false);
   const [heroSkinUrl, setHeroSkinUrl] = useState(null);
+  const [appVersion, setAppVersion] = useState(null);
 
   useEffect(() => {
     refreshStatus();
+  }, []);
+
+  // Versionsnummer unten links – rein informativ, hilft beim Support
+  // ("welche Version hast du?") und bestätigt, dass ein Update angekommen ist.
+  useEffect(() => {
+    getVersion()
+      .then(setAppVersion)
+      .catch(() => {});
   }, []);
 
   // Eigener Skin groß im Hintergrund des Hauptbildschirms, wie der
@@ -231,71 +276,114 @@ export default function MainScreen({ session, onLoggedOut }) {
       <div className="erzmark-body">
         <BossEventCountdown />
 
-        <main className="erzmark-main-content">
-          <div className="erzmark-hero-stage">
-            <span className="erzmark-hero-name">{session?.username}</span>
+        <div className="erzmark-columns">
+          <aside className="erzmark-sidebar erzmark-sidebar-left">
+            <SocialDock />
+          </aside>
 
-            {heroSkinUrl && (
-              <div className="erzmark-hero-skin" aria-hidden="true">
-                <SkinMirror skinUrl={heroSkinUrl} width={280} height={420} />
+          <main className="erzmark-main-content">
+            <div className="erzmark-hero-stage">
+              <span className="erzmark-hero-name">{session?.username}</span>
+
+              {heroSkinUrl && (
+                <div className="erzmark-hero-skin" aria-hidden="true">
+                  <SkinMirror skinUrl={heroSkinUrl} width={280} height={420} />
+                </div>
+              )}
+
+              <ActiveCharacterCard />
+            </div>
+
+            <button
+              className="erzmark-btn-launch"
+              onClick={handleMainButton}
+              disabled={disabled}
+              aria-label={busy && progress ? progress.label : buttonLabel}
+            >
+              <GemIcon spinning={busy || gameRunning} />
+              <span className="erzmark-btn-launch-text">
+                <span className="erzmark-btn-launch-label">
+                  {busy && progress ? progress.label : buttonLabel}
+                </span>
+                {!busy && status?.latest_client_version && (
+                  <span className="erzmark-btn-launch-sub">
+                    Erzmark Fabric {status.minecraft_version}
+                  </span>
+                )}
+              </span>
+            </button>
+
+            {busy && progress && (
+              <div className="erzmark-progress" role="progressbar">
+                <div
+                  className="erzmark-progress-bar"
+                  style={{ width: percent != null ? `${percent}%` : "35%" }}
+                />
               </div>
             )}
+            {busy && progress && percent != null && <p className="erzmark-hint">{percent}%</p>}
 
-            <ActiveCharacterCard />
-          </div>
+            {statusError && <p className="erzmark-error">{statusError}</p>}
+            {actionError && <p className="erzmark-error">{actionError}</p>}
+          </main>
 
-          <button
-            className="erzmark-btn-launch"
-            onClick={handleMainButton}
-            disabled={disabled}
-            aria-label={busy && progress ? progress.label : buttonLabel}
-          >
-            <GemIcon spinning={busy || gameRunning} />
-            <span className="erzmark-btn-launch-text">
-              <span className="erzmark-btn-launch-label">
-                {busy && progress ? progress.label : buttonLabel}
-              </span>
-              {!busy && status?.latest_client_version && (
-                <span className="erzmark-btn-launch-sub">
-                  Erzmark Fabric {status.minecraft_version}
-                </span>
-              )}
-            </span>
-          </button>
-
-          {busy && progress && (
-            <div className="erzmark-progress" role="progressbar">
-              <div
-                className="erzmark-progress-bar"
-                style={{ width: percent != null ? `${percent}%` : "35%" }}
-              />
-            </div>
-          )}
-          {busy && progress && percent != null && <p className="erzmark-hint">{percent}%</p>}
-
-          {statusError && <p className="erzmark-error">{statusError}</p>}
-          {actionError && <p className="erzmark-error">{actionError}</p>}
-        </main>
-
-        <aside className="erzmark-sidebar">
-          <SidebarDock />
-        </aside>
+          <aside className="erzmark-sidebar">
+            <SidebarDock />
+          </aside>
+        </div>
       </div>
 
       <footer className="erzmark-secondary-actions">
-        <button className="erzmark-rune-btn" onClick={() => setShowSkinChanger(true)}>
-          <span className="erzmark-rune-btn-icon">
-            <SkinIcon />
-          </span>
-          Skin ändern
-        </button>
-        <button className="erzmark-rune-btn" onClick={() => setShowSettings(true)}>
-          <span className="erzmark-rune-btn-icon">
-            <SettingsIcon />
-          </span>
-          Einstellungen
-        </button>
+        <div className="erzmark-secondary-spacer" aria-hidden="true" />
+
+        <div className="erzmark-secondary-center">
+          <button className="erzmark-rune-btn" onClick={() => setShowSkinChanger(true)}>
+            <span className="erzmark-rune-btn-icon">
+              <SkinIcon />
+            </span>
+            Skin ändern
+          </button>
+          <button className="erzmark-rune-btn" onClick={() => setShowSettings(true)}>
+            <span className="erzmark-rune-btn-icon">
+              <SettingsIcon />
+            </span>
+            Einstellungen
+          </button>
+        </div>
+
+        <div className="erzmark-social-links">
+          <button
+            type="button"
+            className="erzmark-social-btn"
+            onClick={() => openExternalUrl(DISCORD_URL).catch(() => {})}
+            title="Discord"
+            aria-label="Discord"
+          >
+            <DiscordIcon />
+          </button>
+          <button
+            type="button"
+            className="erzmark-social-btn"
+            onClick={() => openExternalUrl(YOUTUBE_URL).catch(() => {})}
+            title="YouTube"
+            aria-label="YouTube"
+          >
+            <YoutubeIcon />
+          </button>
+          <button
+            type="button"
+            className="erzmark-social-btn erzmark-social-btn-soon"
+            title="Android-App – bald verfügbar"
+            aria-label="Android-App (bald verfügbar)"
+            disabled
+          >
+            <AppDownloadIcon />
+            <span className="erzmark-social-soon-badge">Bald</span>
+          </button>
+        </div>
       </footer>
+
+      {appVersion && <span className="erzmark-version-corner">v{appVersion}</span>}
 
       {showSettings && <SettingsScreen onClose={() => setShowSettings(false)} />}
       {showSkinChanger && <SkinChangerScreen onClose={() => setShowSkinChanger(false)} />}
