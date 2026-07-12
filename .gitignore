@@ -11,3 +11,6 @@ src-tauri/target
 # nicht mit ausgeschlossen (falls er separat aufbewahrt werden soll, einfach
 # manuell hinzufügen).
 *.key
+
+# Enthält Server-Zugangsdaten/Secrets für KI-Agent-Handoff - niemals committen.
+HANDOFF.md

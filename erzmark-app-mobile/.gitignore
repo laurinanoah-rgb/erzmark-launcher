@@ -1,0 +1,20 @@
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Native Projekte werden von EAS Build bei jedem Build frisch aus app.json
+# generiert (Managed Workflow / Prebuild) - bewusst nicht committen, sonst
+# driftet es lautlos von app.json weg (siehe expo-doctor-Warnung).
+android/
+ios/
+
+# macOS
+.DS_Store
+*.pem
+
+# lokale env-Dateien
+.env*.local
+
+# typescript
+*.tsbuildinfo

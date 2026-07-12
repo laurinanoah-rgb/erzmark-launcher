@@ -287,7 +287,7 @@ export default function MainScreen({ session, onLoggedOut }) {
 
               {heroSkinUrl && (
                 <div className="erzmark-hero-skin" aria-hidden="true">
-                  <SkinMirror skinUrl={heroSkinUrl} width={280} height={420} />
+                  <SkinMirror skinUrl={heroSkinUrl} width={280} height={420} emotes />
                 </div>
               )}
 
