@@ -1,0 +1,61 @@
+name: Erzmark Mobile – OTA-Update veröffentlichen
+
+# Automatisch bei jedem Push auf main, der die Mobile App betrifft ->
+# veröffentlicht auf den "preview"-Kanal (Testgeräte, siehe eas.json). Der
+# "production"-Kanal wird bewusst NICHT automatisch bespielt - dafür den
+# Workflow manuell über den "Actions"-Tab (Run workflow) mit Kanal
+# "production" auslösen, damit nie ungeprüfter Code direkt bei echten
+# Spielern landet. Reine JS-Änderungen (UI, Bugfixes) reichen für ein
+# OTA-Update - native Änderungen (neue Module/Permissions) brauchen
+# stattdessen einen neuen Build, siehe mobile-build.yml.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "erzmark-app-mobile/**"
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Update-Kanal (siehe eas.json)"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+      message:
+        description: "Kurze Beschreibung des Updates (optional)"
+        required: false
+        default: ""
+
+jobs:
+  publish-update:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: erzmark-app-mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: EAS CLI einrichten
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: OTA-Update veröffentlichen
+        run: |
+          CHANNEL="${{ github.event.inputs.channel || 'preview' }}"
+          MESSAGE="${{ github.event.inputs.message }}"
+          if [ -z "$MESSAGE" ]; then
+            MESSAGE="Auto-Update von Commit ${{ github.sha }}"
+          fi
+          eas update --branch "$CHANNEL" --message "$MESSAGE" --non-interactive

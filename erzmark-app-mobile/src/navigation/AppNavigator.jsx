@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { View, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { colors } from "../theme";
 
 import LoginScreen from "../screens/LoginScreen";
 import UpdateRequiredScreen from "../screens/UpdateRequiredScreen";
@@ -38,10 +39,25 @@ function GuildStackScreen() {
   );
 }
 
-function MainTabs() {
+const TAB_ICONS = {
+  Home: "🏠",
+  Gilden: "🛡️",
+  Freunde: "👥",
+  Profil: "🙂",
+};
+
+function MainTabs({ onLogout }) {
   return (
-    <Tabs.Navigator screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="Home" component={HomeScreen} />
+    <Tabs.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: () => <Text style={{ fontSize: 20 }}>{TAB_ICONS[route.name]}</Text>,
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.bgElevated, borderTopColor: colors.goldSoft },
+      })}
+    >
+      <Tabs.Screen name="Home">{() => <HomeScreen onLogout={onLogout} />}</Tabs.Screen>
       <Tabs.Screen name="Gilden" component={GuildStackScreen} />
       <Tabs.Screen name="Freunde" component={FriendsScreen} />
       <Tabs.Screen name="Profil" component={ProfileScreen} />
@@ -128,7 +144,7 @@ export default function AppNavigator() {
           <RootStack.Screen name="Main">
             {() => (
               <View style={{ flex: 1 }}>
-                <MainTabs />
+                <MainTabs onLogout={handleLogout} />
                 <AccountBar onSwitchProfile={handleSwitchProfile} onLogout={handleLogout} />
               </View>
             )}

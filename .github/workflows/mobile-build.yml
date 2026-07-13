@@ -1,0 +1,59 @@
+name: Erzmark Mobile – Nativen Build erstellen
+
+# Manuell auslösbar über den "Actions"-Tab (Run workflow-Button). Stößt einen
+# Build in der EAS-Cloud an (kein eigener Rechner/Mac nötig) - nötig bei
+# Änderungen an nativen Modulen/Permissions/app.json-Konfiguration. Für reine
+# JS-Änderungen (UI, Bugfixes) reicht stattdessen ein OTA-Update, siehe
+# mobile-ota-update.yml - viel schneller und braucht keinen neuen Build.
+#
+# `--no-wait` lässt den Build in der EAS-Cloud laufen, ohne dass dieser
+# GitHub-Actions-Job die ganze Bauzeit (oft 15-20 Min) blockiert - Fortschritt
+# und Download-Link gibt's auf expo.dev/accounts/laurinanoah/projects/erzmark-app/builds.
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS-Build-Profil (siehe eas.json)"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+      platform:
+        description: "Zielplattform"
+        required: true
+        default: android
+        type: choice
+        options:
+          - android
+          - ios
+          - all
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: erzmark-app-mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: EAS CLI einrichten
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build anstoßen
+        run: |
+          eas build --profile "${{ github.event.inputs.profile }}" --platform "${{ github.event.inputs.platform }}" --non-interactive --no-wait

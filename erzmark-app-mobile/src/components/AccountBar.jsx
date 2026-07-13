@@ -46,11 +46,13 @@ export default function AccountBar({ profileName, onSwitchProfile, onLogout }) {
 }
 
 const styles = StyleSheet.create({
-  bar: { position: "absolute", top: 50, left: 16, zIndex: 10 },
+  // top:104 statt 50 - sitzt sonst genau über dem neuen HomeHeader-Banner
+  // (Logo/Wordmark links, Account+Abmelden rechts, siehe HomeHeader.jsx).
+  bar: { position: "absolute", top: 104, left: 16, zIndex: 10 },
   trigger: { backgroundColor: "#1a1c22", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "#262832" },
   triggerText: { color: "#f4f5f7", fontSize: 14, fontWeight: "600" },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  menu: { position: "absolute", top: 90, left: 16, backgroundColor: "#1a1c22", borderRadius: 10, borderWidth: 1, borderColor: "#262832", overflow: "hidden", minWidth: 180 },
+  menu: { position: "absolute", top: 144, left: 16, backgroundColor: "#1a1c22", borderRadius: 10, borderWidth: 1, borderColor: "#262832", overflow: "hidden", minWidth: 180 },
   menuItem: { paddingHorizontal: 16, paddingVertical: 14 },
   menuItemText: { color: "#f4f5f7", fontSize: 15 },
   menuItemDanger: { color: "#ff6b6b" },

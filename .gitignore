@@ -14,3 +14,7 @@ src-tauri/target
 
 # Enthält Server-Zugangsdaten/Secrets für KI-Agent-Handoff - niemals committen.
 HANDOFF.md
+
+# Lokale Dev-Server-Konfiguration für KI-Coding-Assistenten (z.B. Claude Code
+# Browser-Preview) - rein lokales Tooling, nicht Teil der App.
+.claude/

@@ -10,6 +10,7 @@ WebBrowser.maybeCompleteAuthSession();
 const TOKEN_KEY = "erzmark_minecraft_token";
 const MS_REFRESH_TOKEN_KEY = "erzmark_ms_refresh_token";
 const ACTIVE_PROFILE_KEY = "erzmark_active_profile_uuid";
+const ACCOUNT_UUID_KEY = "erzmark_account_uuid";
 
 // Exakt dieselben Werte wie im Desktop-Launcher (src-tauri/src/config.rs).
 // Der Client ist bei Microsoft als "public client" (Authorization Code +
@@ -168,7 +169,13 @@ async function completeMinecraftLogin(msAccessToken) {
   // existiert.
   await checkOwnsGame(mcAccessToken);
   // Wirft, falls kein Minecraft-Account auf diesem Microsoft-Konto existiert.
-  await fetchMinecraftProfile(mcAccessToken);
+  const profile = await fetchMinecraftProfile(mcAccessToken);
+  // Rohe Account-UUID (nicht die MMOProfiles-Profil-UUID!) wird für die
+  // öffentlichen Launcher-Endpunkte gebraucht (friends.php erwartet sie),
+  // siehe getAccountUuid() unten.
+  if (profile?.id) {
+    await storeAccountUuid(profile.id);
+  }
 
   return mcAccessToken;
 }
@@ -267,6 +274,23 @@ export async function tryRefreshLogin() {
   }
 }
 
+// ---- Rohe Minecraft-Account-UUID (Mojang-Account, nicht MMOProfiles) ----
+// Wird für die öffentlichen, read-only Launcher-Endpunkte gebraucht
+// (friends.php erwartet die echte Account-UUID als Query-Parameter, siehe
+// friends.rs im Desktop-Launcher als Vorlage).
+
+async function storeAccountUuid(uuid) {
+  return SecureStore.setItemAsync(ACCOUNT_UUID_KEY, uuid);
+}
+
+export async function getAccountUuid() {
+  return SecureStore.getItemAsync(ACCOUNT_UUID_KEY);
+}
+
+async function clearAccountUuid() {
+  return SecureStore.deleteItemAsync(ACCOUNT_UUID_KEY);
+}
+
 // ---- Aktives MMOProfiles-Profil ----
 // (siehe Task #51/#82: MMOProfiles vergibt pro Charakter-Profil eine eigene
 // UUID, deshalb muss der Spieler explizit wählen, welches Profil gerade
@@ -290,4 +314,5 @@ export async function logout() {
   await clearActiveProfileUuid();
   await clearToken();
   await clearMsRefreshToken();
+  await clearAccountUuid();
 }
