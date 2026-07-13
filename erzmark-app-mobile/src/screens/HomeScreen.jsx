@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HomeHeader from "../components/HomeHeader";
 import BossEventBanner from "../components/BossEventBanner";
-import ProfileStatsCard from "../components/ProfileStatsCard";
+import ProfileCard from "../components/ProfileCard";
 import NewsList from "../components/NewsList";
 import FriendsPreview from "../components/FriendsPreview";
 import { getMyProfiles } from "../api/profiles";
@@ -37,8 +37,8 @@ export default function HomeScreen({ onLogout }) {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <HomeHeader accountName={accountName} onLogout={onLogout} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ProfileCard profile={activeProfile} />
         <BossEventBanner />
-        <ProfileStatsCard profile={activeProfile} />
         <NewsList />
         <FriendsPreview />
       </ScrollView>

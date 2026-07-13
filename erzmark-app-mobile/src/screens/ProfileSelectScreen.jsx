@@ -11,8 +11,8 @@ import { getStoredToken, storeActiveProfileUuid, logout } from "../api/auth";
  * wählen, welches Profil gerade "er" ist, bevor Gilde/Klasse/Stats
  * angezeigt werden können.
  *
- * `onLogout` ist bewusst hier verfügbar (nicht nur in der AccountBar auf
- * den Haupt-Tabs) - falls das Laden der Profile fehlschlägt (z.B. falscher/
+ * `onLogout` ist bewusst hier verfügbar (nicht nur im Einstellungen-Tab der
+ * Haupt-Tabs) - falls das Laden der Profile fehlschlägt (z.B. falscher/
  * abgelaufener Token), gäbe es sonst keinen Weg zurück zum Login-Screen.
  */
 export default function ProfileSelectScreen({ onProfileSelected, onLogout }) {

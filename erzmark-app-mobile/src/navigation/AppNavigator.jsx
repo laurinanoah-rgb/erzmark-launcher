@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text } from "react-native";
+import { Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -13,7 +13,7 @@ import GuildListScreen from "../screens/GuildListScreen";
 import GuildChatScreen from "../screens/GuildChatScreen";
 import FriendsScreen from "../screens/FriendsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
-import AccountBar from "../components/AccountBar";
+import SettingsScreen from "../screens/SettingsScreen";
 
 import { checkForAppUpdate } from "../api/updateCheck";
 import {
@@ -44,9 +44,10 @@ const TAB_ICONS = {
   Gilden: "🛡️",
   Freunde: "👥",
   Profil: "🙂",
+  Einstellungen: "⚙️",
 };
 
-function MainTabs({ onLogout }) {
+function MainTabs({ onLogout, onSwitchProfile }) {
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
@@ -61,6 +62,9 @@ function MainTabs({ onLogout }) {
       <Tabs.Screen name="Gilden" component={GuildStackScreen} />
       <Tabs.Screen name="Freunde" component={FriendsScreen} />
       <Tabs.Screen name="Profil" component={ProfileScreen} />
+      <Tabs.Screen name="Einstellungen">
+        {() => <SettingsScreen onSwitchProfile={onSwitchProfile} onLogout={onLogout} />}
+      </Tabs.Screen>
     </Tabs.Navigator>
   );
 }
@@ -72,8 +76,9 @@ function MainTabs({ onLogout }) {
  * 3. Profil-Auswahl (MMOProfiles: mehrere Charakter-UUIDs pro Account,
  *    siehe Task #51/#82) - eigener Screen im Start-Flow, NICHT in den
  *    Einstellungen versteckt.
- * 4. Haupt-Tabs, mit AccountBar oben links ("Profil wechseln"/"Abmelden" -
- *    führt zurück zu Schritt 3 bzw. 2).
+ * 4. Haupt-Tabs, "Profil wechseln"/"Abmelden" leben im Einstellungen-Tab
+ *    (führt zurück zu Schritt 3 bzw. 2) - vorher eine überlappende
+ *    AccountBar oben links, die den neuen HomeHeader verdeckt hat.
  */
 export default function AppNavigator() {
   const [pendingUpdate, setPendingUpdate] = useState(undefined); // undefined = noch am prüfen
@@ -142,12 +147,7 @@ export default function AppNavigator() {
           </RootStack.Screen>
         ) : (
           <RootStack.Screen name="Main">
-            {() => (
-              <View style={{ flex: 1 }}>
-                <MainTabs onLogout={handleLogout} />
-                <AccountBar onSwitchProfile={handleSwitchProfile} onLogout={handleLogout} />
-              </View>
-            )}
+            {() => <MainTabs onLogout={handleLogout} onSwitchProfile={handleSwitchProfile} />}
           </RootStack.Screen>
         )}
       </RootStack.Navigator>

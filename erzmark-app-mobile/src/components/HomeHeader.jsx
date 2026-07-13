@@ -4,10 +4,9 @@ import { colors, radius, spacing } from "../theme";
 /**
  * Geschmiedete Kopfleiste ganz oben auf dem HomeScreen - Pendant zum
  * `.erzmark-header` im Desktop-Launcher (Logo/Wordmark links, Account +
- * Abmelden rechts). Bewusst eigenständig statt nur die kleine AccountBar-
- * Dropdown zu nutzen, damit "Abmelden" auf dem Home-Screen selbst immer
- * sichtbar/erreichbar ist (siehe AppNavigator.jsx für die globale
- * AccountBar, die zusätzlich "Profil wechseln" auf allen Tabs anbietet).
+ * Abmelden rechts). "Profil wechseln" lebt separat im Einstellungen-Tab
+ * (siehe SettingsScreen.jsx) - vorher gab es dafür eine überlappende,
+ * global schwebende AccountBar, die diesen Header verdeckt hat.
  */
 export default function HomeHeader({ accountName, onLogout }) {
   return (
