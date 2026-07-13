@@ -38,8 +38,14 @@ pub async fn login_interactive() -> Result<MsTokenResponse> {
         .port();
     let redirect_uri = format!("http://127.0.0.1:{port}/callback");
 
+    // `prompt=select_account` erzwingt Microsofts Kontoauswahl-Dialog bei
+    // JEDEM interaktiven Login. Ohne das haelt der System-Browser die
+    // Session vom letzten Login fest und meldet ohne Rueckfrage automatisch
+    // mit demselben Konto an - es gibt dann keinen Weg mehr zurueck zur
+    // Kontoauswahl, um ein anderes Microsoft-/Xbox-Konto zu verwenden
+    // (Bug-Report, betraf Launcher UND Mobile App gleichermassen).
     let authorize_url = format!(
-        "{base}?client_id={client_id}&response_type=code&redirect_uri={redirect}&response_mode=query&scope={scope}&code_challenge={challenge}&code_challenge_method=S256&state={state}",
+        "{base}?client_id={client_id}&response_type=code&redirect_uri={redirect}&response_mode=query&scope={scope}&code_challenge={challenge}&code_challenge_method=S256&state={state}&prompt=select_account",
         base = config::MS_AUTHORIZE_URL,
         client_id = config::MS_CLIENT_ID,
         redirect = urlencoding::encode(&redirect_uri),

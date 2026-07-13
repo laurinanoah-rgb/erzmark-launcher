@@ -14,6 +14,7 @@ import GuildChatScreen from "../screens/GuildChatScreen";
 import FriendsScreen from "../screens/FriendsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import SplashScreen from "../screens/SplashScreen";
 
 import { checkForAppUpdate } from "../api/updateCheck";
 import {
@@ -22,7 +23,14 @@ import {
   clearActiveProfileUuid,
   logout,
   tryRefreshLogin,
+  switchAccount,
+  loginWithMinecraft,
 } from "../api/auth";
+
+// Mindestdauer fuer die Start-Animation (SplashScreen.jsx) - ohne das
+// wuerde sie auf schnellen Geraeten/mit bereits gueltigem Token oft nur ein
+// paar Millisekunden aufblitzen, bevor direkt der Home-Screen erscheint.
+const SPLASH_MIN_DURATION_MS = 1500;
 
 const RootStack = createNativeStackNavigator();
 const GuildStack = createNativeStackNavigator();
@@ -47,7 +55,7 @@ const TAB_ICONS = {
   Einstellungen: "⚙️",
 };
 
-function MainTabs({ onLogout, onSwitchProfile }) {
+function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount }) {
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
@@ -63,7 +71,14 @@ function MainTabs({ onLogout, onSwitchProfile }) {
       <Tabs.Screen name="Freunde" component={FriendsScreen} />
       <Tabs.Screen name="Profil" component={ProfileScreen} />
       <Tabs.Screen name="Einstellungen">
-        {() => <SettingsScreen onSwitchProfile={onSwitchProfile} onLogout={onLogout} />}
+        {() => (
+          <SettingsScreen
+            onSwitchProfile={onSwitchProfile}
+            onLogout={onLogout}
+            onSwitchAccount={onSwitchAccount}
+            onAddAccount={onAddAccount}
+          />
+        )}
       </Tabs.Screen>
     </Tabs.Navigator>
   );
@@ -84,29 +99,41 @@ export default function AppNavigator() {
   const [pendingUpdate, setPendingUpdate] = useState(undefined); // undefined = noch am prüfen
   const [token, setToken] = useState(undefined);
   const [activeProfileUuid, setActiveProfileUuid] = useState(undefined);
+  const [splashMinDurationDone, setSplashMinDurationDone] = useState(false);
 
   useEffect(() => {
     checkForAppUpdate()
       .then(setPendingUpdate)
       .catch(() => setPendingUpdate(null));
 
-    getStoredToken().then(async (stored) => {
+    // Token + Profil-Auswahl bewusst NACHEINANDER (nicht parallel) laden:
+    // Beide hängen jetzt vom aktiven Konto ab, und `tryRefreshLogin()` kann
+    // dieses bei einem ungültigen Refresh-Token entfernen und zu einem
+    // anderen wechseln (siehe auth.js) - ein paralleler Abruf von
+    // `getActiveProfileUuid()` könnte sonst noch den Stand VOR diesem
+    // Wechsel lesen (Race Condition).
+    (async () => {
+      const stored = await getStoredToken();
       if (stored) {
         setToken(stored);
+        setActiveProfileUuid(await getActiveProfileUuid());
         return;
       }
       // Kein (mehr gültiger) gespeicherter Minecraft-Token - still über den
       // gespeicherten Microsoft-Refresh-Token einloggen, bevor der
       // Login-Screen gezeigt wird (Auto-Login, analog zum Desktop-Launcher).
       const refreshed = await tryRefreshLogin();
-      setToken(refreshed);
-    });
+      setToken(refreshed?.token ?? null);
+      setActiveProfileUuid(refreshed?.activeProfileUuid ?? null);
+    })();
 
-    getActiveProfileUuid().then(setActiveProfileUuid);
+    const timer = setTimeout(() => setSplashMinDurationDone(true), SPLASH_MIN_DURATION_MS);
+    return () => clearTimeout(timer);
   }, []);
 
-  if (pendingUpdate === undefined || token === undefined || activeProfileUuid === undefined) {
-    return null; // TODO: Splash-Screen
+  const checksReady = pendingUpdate !== undefined && token !== undefined && activeProfileUuid !== undefined;
+  if (!checksReady || !splashMinDurationDone) {
+    return <SplashScreen />;
   }
 
   async function handleSwitchProfile() {
@@ -114,10 +141,28 @@ export default function AppNavigator() {
     setActiveProfileUuid(null);
   }
 
+  // Meldet NUR das aktive Konto ab - sind noch andere Konten gespeichert,
+  // wechselt die App automatisch zum ersten verbleibenden (siehe
+  // auth.js::removeAccount), statt komplett zum Login-Screen zu springen.
   async function handleLogout() {
-    await logout();
-    setToken(null);
-    setActiveProfileUuid(null);
+    const remaining = await logout();
+    setToken(remaining?.token ?? null);
+    setActiveProfileUuid(remaining?.activeProfileUuid ?? null);
+  }
+
+  async function handleSwitchAccount(uuid) {
+    const result = await switchAccount(uuid);
+    setToken(result.token);
+    setActiveProfileUuid(result.activeProfileUuid);
+  }
+
+  // Startet denselben Microsoft-Login-Flow wie beim allerersten Login -
+  // fügt aber ein weiteres Konto hinzu, statt das bestehende zu ersetzen
+  // (siehe auth.js::loginWithMinecraft).
+  async function handleAddAccount() {
+    const result = await loginWithMinecraft();
+    setToken(result.token);
+    setActiveProfileUuid(result.activeProfileUuid);
   }
 
   return (
@@ -129,25 +174,40 @@ export default function AppNavigator() {
           </RootStack.Screen>
         ) : !token ? (
           <RootStack.Screen name="Login">
-            {() => <LoginScreen onLoggedIn={setToken} />}
+            {() => (
+              <LoginScreen
+                onLoggedIn={(result) => {
+                  setToken(result.token);
+                  setActiveProfileUuid(result.activeProfileUuid);
+                }}
+              />
+            )}
           </RootStack.Screen>
         ) : !activeProfileUuid ? (
           <RootStack.Screen name="ProfileSelect">
             {() => (
               <ProfileSelectScreen
                 onProfileSelected={setActiveProfileUuid}
-                onLogout={() => {
+                onLogout={(remaining) => {
                   // logout() wurde schon in ProfileSelectScreen aufgerufen,
-                  // hier nur noch den lokalen State zuruecksetzen.
-                  setToken(null);
-                  setActiveProfileUuid(null);
+                  // hier nur noch den lokalen State auf das (ggf. andere)
+                  // verbleibende Konto setzen.
+                  setToken(remaining?.token ?? null);
+                  setActiveProfileUuid(remaining?.activeProfileUuid ?? null);
                 }}
               />
             )}
           </RootStack.Screen>
         ) : (
           <RootStack.Screen name="Main">
-            {() => <MainTabs onLogout={handleLogout} onSwitchProfile={handleSwitchProfile} />}
+            {() => (
+              <MainTabs
+                onLogout={handleLogout}
+                onSwitchProfile={handleSwitchProfile}
+                onSwitchAccount={handleSwitchAccount}
+                onAddAccount={handleAddAccount}
+              />
+            )}
           </RootStack.Screen>
         )}
       </RootStack.Navigator>

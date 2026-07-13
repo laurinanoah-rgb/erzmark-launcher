@@ -4,6 +4,11 @@ import { getBossEvent } from "../api/events";
 import { colors, radius, spacing } from "../theme";
 
 const EVENTS_PAGE_URL = "https://erzmark.de/events";
+// Der Termin selbst kann sich aendern, waehrend die App offen ist (Team
+// setzt kurzfristig einen neuen Boss-Event an) - deshalb regelmaessig neu
+// abfragen statt nur einmal beim Start, analog zum Freundesliste-Pattern
+// im Launcher (FriendsList.jsx, AUTO_REFRESH_MS).
+const AUTO_REFRESH_MS = 60 * 1000;
 
 function getRemaining(targetIso) {
   const target = new Date(targetIso).getTime();
@@ -35,6 +40,8 @@ export default function BossEventBanner() {
 
   useEffect(() => {
     getBossEvent().then(setEvent);
+    const id = setInterval(() => getBossEvent().then(setEvent), AUTO_REFRESH_MS);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {

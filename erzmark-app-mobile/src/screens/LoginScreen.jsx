@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
-import { loginWithMinecraft, storeToken } from "../api/auth";
+import { loginWithMinecraft } from "../api/auth";
 
 /**
  * Login-Screen: exakt wie im Launcher nur Minecraft-Account (Microsoft
@@ -14,9 +14,8 @@ export default function LoginScreen({ onLoggedIn }) {
     setLoading(true);
     setError(null);
     try {
-      const token = await loginWithMinecraft();
-      await storeToken(token);
-      onLoggedIn(token);
+      const result = await loginWithMinecraft();
+      onLoggedIn(result);
     } catch (err) {
       setError(err?.message ?? String(err));
     } finally {

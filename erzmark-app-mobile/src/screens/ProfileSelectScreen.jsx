@@ -41,8 +41,8 @@ export default function ProfileSelectScreen({ onProfileSelected, onLogout }) {
   }
 
   async function handleLogout() {
-    await logout();
-    onLogout();
+    const remaining = await logout();
+    onLogout(remaining);
   }
 
   return (

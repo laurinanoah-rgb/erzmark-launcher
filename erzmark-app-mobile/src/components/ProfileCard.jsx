@@ -25,13 +25,32 @@ function formatCoins(amount) {
   return Math.round(amount).toLocaleString("de-DE");
 }
 
+// Eigenes Badge-Design pro LuckPerms-Rang (siehe ProfileController.php auf
+// dem Server): die echten Ingame-Prefixe sind Nexo-Glyphen/PlaceholderAPI-
+// Platzhalter (z.B. "%nexo_ranksbuilder%"), die nur im Minecraft-Client mit
+// Resourcepack darstellbar sind - hier deshalb eine eigene, zum Erzmark-
+// Stil passende Gestaltung statt eines Nachbaus der Ingame-Grafik.
+// "default" (ganz normaler Spieler, die große Mehrheit) bekommt bewusst
+// KEIN Badge, um die Karte nicht mit einem bedeutungslosen Tag zu überladen.
+const RANK_BADGES = {
+  owner: { label: "Owner", color: "#ef4343" },
+  dev: { label: "Dev", color: "#a855f7" },
+  mod: { label: "Mod", color: "#42b7fa" },
+  supp: { label: "Support", color: "#00bc7d" },
+  builder: { label: "Builder", color: "#f59e0b" },
+};
+
+function getRankBadge(rankName) {
+  if (!rankName || rankName === "default") return null;
+  return RANK_BADGES[rankName] ?? { label: rankName, color: colors.textMuted };
+}
+
 /**
- * Profilkarte ganz oben auf dem HomeScreen (unter dem Banner) - zeigt Name,
- * Klasse, Level, Kampf-Stats, Münzen und letzten Spielzeitpunkt des gewählten
- * Profils auf einen Blick. Level/HP/Mana/Ausdauer/Münzen sind optional, da
- * `/app-api/profiles/mine` sie aktuell noch nicht liefert (siehe HANDOFF.md,
- * TODO Backend-Erweiterung) - die Karte zeigt nur vorhandene Felder an und
- * wächst automatisch mit, sobald das Backend mehr liefert.
+ * Profilkarte ganz oben auf dem HomeScreen (unter dem Banner) - zeigt
+ * Rang-Badge (LuckPerms), Name, Klasse, Level, Kampf-Stats, Münzen und
+ * letzten Spielzeitpunkt des gewählten Profils auf einen Blick. Alle
+ * einzelnen Felder sind optional und werden nur angezeigt, wenn vorhanden
+ * (robust gegen künftige Backend-Änderungen).
  */
 export default function ProfileCard({ profile }) {
   if (!profile) return null;
@@ -39,6 +58,7 @@ export default function ProfileCard({ profile }) {
   const className = prettifyClassName(profile.className);
   const lastPlayed = formatLastPlayed(profile.lastPlayedAt);
   const coins = formatCoins(profile.coins);
+  const rank = getRankBadge(profile.rankName);
   const hasStats = profile.health != null || profile.mana != null || profile.stamina != null;
   const hasFooter = lastPlayed || coins;
 
@@ -46,7 +66,14 @@ export default function ProfileCard({ profile }) {
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.identity}>
-          <Text style={styles.name}>{profile.name}</Text>
+          <View style={styles.nameLine}>
+            {rank && (
+              <View style={[styles.rankBadge, { backgroundColor: rank.color }]}>
+                <Text style={styles.rankBadgeText}>{rank.label}</Text>
+              </View>
+            )}
+            <Text style={styles.name}>{profile.name}</Text>
+          </View>
           {profile.level != null && <Text style={styles.level}>Level {profile.level}</Text>}
         </View>
         {className && (
@@ -111,7 +138,20 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
   identity: { gap: 2 },
+  nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   name: { fontSize: 19, fontWeight: "800", color: colors.text },
+  rankBadge: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  rankBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    color: "#fff",
+  },
   level: { fontSize: 12, color: colors.textMuted, fontWeight: "600" },
   badge: {
     backgroundColor: colors.gold,

@@ -42,16 +42,22 @@ const styles = StyleSheet.create({
   },
   brand: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   sigil: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.panel,
     borderWidth: 1.5,
     borderColor: colors.goldSoft,
+    overflow: "hidden",
   },
-  logo: { width: 24, height: 24, resizeMode: "contain" },
+  // icon.png ist eine volle quadratische Illustration (weisser Hintergrund,
+  // "ERZMARK"-Schriftzug unten eingebrannt, kein freigestelltes Icon) - bei
+  // "cover" wuerde nur ein zufaelliger Ausschnitt zu sehen sein, "contain"
+  // zeigt die ganze Grafik. Vorher 24/38 = 63% Kreisfuellung wirkte winzig,
+  // jetzt insgesamt groesser (56er Kreis, 50px Logo = 89% Fuellung).
+  logo: { width: 50, height: 50, resizeMode: "contain" },
   wordmark: {
     fontSize: 16,
     fontWeight: "800",

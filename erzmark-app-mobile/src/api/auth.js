@@ -7,10 +7,14 @@ import { apiRequest } from "./client";
 // in die App sauber geschlossen/aufgelöst wird.
 WebBrowser.maybeCompleteAuthSession();
 
-const TOKEN_KEY = "erzmark_minecraft_token";
-const MS_REFRESH_TOKEN_KEY = "erzmark_ms_refresh_token";
-const ACTIVE_PROFILE_KEY = "erzmark_active_profile_uuid";
-const ACCOUNT_UUID_KEY = "erzmark_account_uuid";
+// ---- Mehrere-Konten-Speicher ----
+// Jedes Konto: { accountUuid, username, msRefreshToken, sanctumToken,
+// activeProfileUuid }. SecureStore kennt nur flache String-Werte, deshalb
+// liegt die ganze Liste als EIN JSON-Array unter einem Key - nicht ideal für
+// sehr viele Konten, aber für die realistische Handvoll pro Spieler völlig
+// ausreichend.
+const ACCOUNTS_KEY = "erzmark_accounts";
+const ACTIVE_ACCOUNT_KEY = "erzmark_active_account_uuid";
 
 // Exakt dieselben Werte wie im Desktop-Launcher (src-tauri/src/config.rs).
 // Der Client ist bei Microsoft als "public client" (Authorization Code +
@@ -34,7 +38,7 @@ const discovery = {
   tokenEndpoint: MS_TOKEN_ENDPOINT,
 };
 
-// WICHTIG: `erzmark://auth` funktioniert nur in einem Dev-Client-/
+// WICHTIG: `erzmark://auth` funktioniert nur in einem Dev-Client- oder
 // Standalone-Build (`npx expo run:android` oder ein EAS-Build), NICHT in
 // der normalen Expo-Go-App - Expo Go kann keine fremden Custom-URL-Schemes
 // für den Redirect abfangen (der frühere auth.expo.io-Proxy für Expo Go
@@ -54,15 +58,35 @@ const redirectUri = AuthSession.makeRedirectUri({ scheme: "erzmark", path: "auth
  * gegen einen echten Sanctum-API-Token getauscht (POST /app-api/auth/
  * minecraft) - auth:sanctum kennt den rohen Mojang-Token nicht, der Server
  * prüft ihn dabei sicherheitshalber noch einmal selbst gegen Mojang nach.
- * Rückgabewert ist dieser Sanctum-Token; er wird vom Aufrufer (LoginScreen)
- * per `storeToken` gespeichert und ist danach der Bearer-Token für alle
- * weiteren Erzmark-App-API-Aufrufe (siehe client.js).
+ *
+ * Fügt das eingeloggte Konto der Konten-Liste hinzu (oder aktualisiert es,
+ * falls es schon existiert) und macht es zum aktiven Konto - dieselbe
+ * Funktion dient also sowohl für den allerersten Login (LoginScreen.jsx)
+ * als auch für "Konto hinzufügen" (SettingsScreen.jsx), der Unterschied
+ * ist nur, ob am Ende schon ein anderes Konto in der Liste stand.
  */
 export async function loginWithMinecraft() {
   const msTokens = await runMicrosoftLogin();
-  await storeMsRefreshToken(msTokens.refreshToken);
-  const mcAccessToken = await completeMinecraftLogin(msTokens.accessToken);
-  return exchangeForSanctumToken(mcAccessToken);
+  const { mcAccessToken, profile } = await completeMinecraftLogin(msTokens.accessToken);
+  const sanctumToken = await exchangeForSanctumToken(mcAccessToken);
+
+  const accounts = await getAccounts();
+  const existing = accounts.find((a) => a.accountUuid === profile.id);
+  const account = {
+    accountUuid: profile.id,
+    username: profile.name,
+    msRefreshToken: msTokens.refreshToken,
+    sanctumToken,
+    activeProfileUuid: existing?.activeProfileUuid ?? null,
+  };
+  await saveAccounts(
+    existing
+      ? accounts.map((a) => (a.accountUuid === profile.id ? account : a))
+      : [...accounts, account]
+  );
+  await setActiveAccountUuid(profile.id);
+
+  return { token: sanctumToken, activeProfileUuid: account.activeProfileUuid };
 }
 
 /**
@@ -84,6 +108,16 @@ async function runMicrosoftLogin() {
     redirectUri,
     responseType: AuthSession.ResponseType.Code,
     usePKCE: true,
+    // Ohne das hier haelt der System-Browser die Microsoft-Session vom
+    // letzten Login fest - ein erneuter Login-Versuch meldet dann OHNE
+    // Rueckfrage automatisch mit demselben Konto an, es gibt keinen Weg
+    // zurueck zum Kontoauswahl-Dialog (Bug-Report: "kann sich nicht mehr
+    // abmelden, um ein anderes Microsoft-/Xbox-Konto zu verwenden").
+    // `select_account` erzwingt den Kontoauswahl-Dialog bei JEDEM
+    // interaktiven Login, egal welche Session der Browser noch hat -
+    // Voraussetzung dafuer, dass "Konto hinzufuegen" (unten) ueberhaupt ein
+    // ANDERES Konto anbieten kann statt automatisch das alte zu nehmen.
+    extraParams: { prompt: "select_account" },
   });
 
   const result = await request.promptAsync(discovery);
@@ -124,7 +158,13 @@ async function refreshMicrosoftToken(refreshToken) {
   };
 }
 
-/** Schritte 2-5 der Auth-Chain (Xbox Live -> XSTS -> Minecraft -> Profil). */
+/**
+ * Schritte 2-5 der Auth-Chain (Xbox Live -> XSTS -> Minecraft -> Profil).
+ * Liefert neben dem Minecraft-Access-Token auch das Mojang-Profil ({id,
+ * name}) zurück - `id` ist die rohe Account-UUID (für friends.php & Co.,
+ * siehe getAccountUuid()), `name` der Minecraft-Name (Anzeige in der
+ * Konten-Liste).
+ */
 async function completeMinecraftLogin(msAccessToken) {
   const xbl = await postJson(
     XBOX_AUTH_URL,
@@ -170,14 +210,8 @@ async function completeMinecraftLogin(msAccessToken) {
   await checkOwnsGame(mcAccessToken);
   // Wirft, falls kein Minecraft-Account auf diesem Microsoft-Konto existiert.
   const profile = await fetchMinecraftProfile(mcAccessToken);
-  // Rohe Account-UUID (nicht die MMOProfiles-Profil-UUID!) wird für die
-  // öffentlichen Launcher-Endpunkte gebraucht (friends.php erwartet sie),
-  // siehe getAccountUuid() unten.
-  if (profile?.id) {
-    await storeAccountUuid(profile.id);
-  }
 
-  return mcAccessToken;
+  return { mcAccessToken, profile };
 }
 
 async function postJson(url, body, label, { isXsts = false } = {}) {
@@ -221,98 +255,172 @@ async function fetchMinecraftProfile(mcAccessToken) {
   return response.json();
 }
 
-// ---- Minecraft-Token-Speicherung ----
+// ---- Konten-Liste: interne Speicher-Helfer ----
 
-export async function getStoredToken() {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+async function getAccounts() {
+  const raw = await SecureStore.getItemAsync(ACCOUNTS_KEY);
+  return raw ? JSON.parse(raw) : [];
 }
 
-export async function storeToken(token) {
-  return SecureStore.setItemAsync(TOKEN_KEY, token);
+async function saveAccounts(accounts) {
+  await SecureStore.setItemAsync(ACCOUNTS_KEY, JSON.stringify(accounts));
 }
 
-export async function clearToken() {
-  return SecureStore.deleteItemAsync(TOKEN_KEY);
+async function updateAccount(uuid, patch) {
+  const accounts = await getAccounts();
+  await saveAccounts(accounts.map((a) => (a.accountUuid === uuid ? { ...a, ...patch } : a)));
 }
 
-// ---- Microsoft-Refresh-Token-Speicherung (für Auto-Login) ----
-
-async function storeMsRefreshToken(refreshToken) {
-  if (!refreshToken) return;
-  return SecureStore.setItemAsync(MS_REFRESH_TOKEN_KEY, refreshToken);
-}
-
-async function getMsRefreshToken() {
-  return SecureStore.getItemAsync(MS_REFRESH_TOKEN_KEY);
-}
-
-async function clearMsRefreshToken() {
-  return SecureStore.deleteItemAsync(MS_REFRESH_TOKEN_KEY);
-}
-
-/**
- * Stiller Auto-Login beim App-Start über den gespeicherten
- * Microsoft-Refresh-Token (analog zum Desktop-Launcher, siehe
- * ms_oauth.rs::refresh). Liefert den neuen Minecraft-Token (und speichert
- * ihn) oder `null`, wenn kein Refresh-Token vorhanden bzw. nicht mehr
- * gültig ist - dann muss sich der Nutzer erneut interaktiv einloggen.
- */
-export async function tryRefreshLogin() {
-  const refreshToken = await getMsRefreshToken();
-  if (!refreshToken) return null;
-
-  try {
-    const msTokens = await refreshMicrosoftToken(refreshToken);
-    await storeMsRefreshToken(msTokens.refreshToken);
-    const mcAccessToken = await completeMinecraftLogin(msTokens.accessToken);
-    const sanctumToken = await exchangeForSanctumToken(mcAccessToken);
-    await storeToken(sanctumToken);
-    return sanctumToken;
-  } catch {
-    await clearMsRefreshToken();
-    return null;
+async function setActiveAccountUuid(uuid) {
+  if (uuid) {
+    await SecureStore.setItemAsync(ACTIVE_ACCOUNT_KEY, uuid);
+  } else {
+    await SecureStore.deleteItemAsync(ACTIVE_ACCOUNT_KEY);
   }
 }
 
-// ---- Rohe Minecraft-Account-UUID (Mojang-Account, nicht MMOProfiles) ----
-// Wird für die öffentlichen, read-only Launcher-Endpunkte gebraucht
-// (friends.php erwartet die echte Account-UUID als Query-Parameter, siehe
-// friends.rs im Desktop-Launcher als Vorlage).
-
-async function storeAccountUuid(uuid) {
-  return SecureStore.setItemAsync(ACCOUNT_UUID_KEY, uuid);
+async function getActiveAccountUuid() {
+  return SecureStore.getItemAsync(ACTIVE_ACCOUNT_KEY);
 }
 
+async function getActiveAccount() {
+  const uuid = await getActiveAccountUuid();
+  if (!uuid) return null;
+  const accounts = await getAccounts();
+  return accounts.find((a) => a.accountUuid === uuid) ?? null;
+}
+
+// ---- Konten-Liste: öffentliche API fürs Einstellungen-Menü ----
+
+/** Für den Konten-Umschalter in SettingsScreen.jsx - ohne Tokens, nur Anzeigedaten. */
+export async function listAccounts() {
+  const [accounts, activeUuid] = await Promise.all([getAccounts(), getActiveAccountUuid()]);
+  return accounts.map((a) => ({
+    accountUuid: a.accountUuid,
+    username: a.username,
+    isActive: a.accountUuid === activeUuid,
+  }));
+}
+
+/**
+ * Wechselt das aktive Konto. Erneuert dabei sicherheitshalber den
+ * Sanctum-Token über den gespeicherten Microsoft-Refresh-Token (könnte
+ * abgelaufen sein, seit dieses Konto zuletzt aktiv war) - schlägt das fehl
+ * (z.B. kurzer Netzwerkhänger), wird trotzdem mit dem zuletzt bekannten
+ * Token gewechselt, statt den Nutzer auszusperren.
+ */
+export async function switchAccount(uuid) {
+  const accounts = await getAccounts();
+  const target = accounts.find((a) => a.accountUuid === uuid);
+  if (!target) {
+    throw new Error("Konto nicht gefunden.");
+  }
+
+  await setActiveAccountUuid(uuid);
+
+  try {
+    const msTokens = await refreshMicrosoftToken(target.msRefreshToken);
+    const { mcAccessToken } = await completeMinecraftLogin(msTokens.accessToken);
+    const sanctumToken = await exchangeForSanctumToken(mcAccessToken);
+    await updateAccount(uuid, { msRefreshToken: msTokens.refreshToken, sanctumToken });
+    return { token: sanctumToken, activeProfileUuid: target.activeProfileUuid };
+  } catch {
+    return { token: target.sanctumToken, activeProfileUuid: target.activeProfileUuid };
+  }
+}
+
+/**
+ * Entfernt ein Konto komplett aus der Liste. Betrifft das GERADE aktive
+ * Konto, wird - falls noch andere Konten übrig sind - automatisch zum
+ * ersten verbleibenden gewechselt (Rückgabewert dann dessen {token,
+ * activeProfileUuid}), sonst `null` (zurück zum Login-Screen). Wird ein
+ * NICHT-aktives Konto entfernt, ändert sich am aktiven Zustand nichts,
+ * Rückgabewert ist dann `null` (nichts zu tun für den Aufrufer).
+ */
+export async function removeAccount(uuid) {
+  const [accounts, activeUuid] = await Promise.all([getAccounts(), getActiveAccountUuid()]);
+  const remaining = accounts.filter((a) => a.accountUuid !== uuid);
+  await saveAccounts(remaining);
+
+  if (uuid !== activeUuid) {
+    return null;
+  }
+
+  if (remaining.length === 0) {
+    await setActiveAccountUuid(null);
+    return null;
+  }
+
+  const next = remaining[0];
+  await setActiveAccountUuid(next.accountUuid);
+  return { token: next.sanctumToken, activeProfileUuid: next.activeProfileUuid };
+}
+
+/** Meldet das AKTIVE Konto ab (siehe removeAccount) - Name bewusst beibehalten, wird an vielen Stellen als "Abmelden"-Aktion aufgerufen. */
+export async function logout() {
+  const activeUuid = await getActiveAccountUuid();
+  if (!activeUuid) return null;
+  return removeAccount(activeUuid);
+}
+
+/**
+ * Stiller Auto-Login beim App-Start für das aktive Konto (analog zum
+ * Desktop-Launcher, siehe ms_oauth.rs::refresh). Ist der gespeicherte
+ * Microsoft-Refresh-Token nicht mehr gültig, wird dieses eine Konto
+ * entfernt (siehe removeAccount) und - falls vorhanden - automatisch zum
+ * nächsten verbleibenden wird gewechselt; dessen Token wird dabei NICHT
+ * zusätzlich validiert (bewusst einfach gehalten, ein ungültiges
+ * Zweit-Konto fällt dann eben beim nächsten API-Call auf statt schon hier).
+ */
+export async function tryRefreshLogin() {
+  const active = await getActiveAccount();
+  if (!active) return null;
+
+  try {
+    const msTokens = await refreshMicrosoftToken(active.msRefreshToken);
+    const { mcAccessToken } = await completeMinecraftLogin(msTokens.accessToken);
+    const sanctumToken = await exchangeForSanctumToken(mcAccessToken);
+    await updateAccount(active.accountUuid, { msRefreshToken: msTokens.refreshToken, sanctumToken });
+    return { token: sanctumToken, activeProfileUuid: active.activeProfileUuid };
+  } catch {
+    return removeAccount(active.accountUuid);
+  }
+}
+
+// ---- Aktives Konto: einfache Abfragen für die restliche App ----
+// (Namen bewusst beibehalten, obwohl intern jetzt über die Konten-Liste
+// gelesen wird - so bleiben HomeScreen.jsx/GuildListScreen.jsx/etc. unverändert.)
+
+export async function getStoredToken() {
+  const active = await getActiveAccount();
+  return active?.sanctumToken ?? null;
+}
+
+/** Rohe Minecraft-Account-UUID (Mojang-Account, nicht MMOProfiles) des aktiven Kontos - für friends.php & Co. */
 export async function getAccountUuid() {
-  return SecureStore.getItemAsync(ACCOUNT_UUID_KEY);
+  const active = await getActiveAccount();
+  return active?.accountUuid ?? null;
 }
 
-async function clearAccountUuid() {
-  return SecureStore.deleteItemAsync(ACCOUNT_UUID_KEY);
-}
-
-// ---- Aktives MMOProfiles-Profil ----
+// ---- Aktives MMOProfiles-Profil (pro Konto!) ----
 // (siehe Task #51/#82: MMOProfiles vergibt pro Charakter-Profil eine eigene
 // UUID, deshalb muss der Spieler explizit wählen, welches Profil gerade
-// "er" ist - kein automatisches Erraten).
+// "er" ist - kein automatisches Erraten. Jetzt pro Konto gespeichert, da
+// jedes Microsoft-Konto sein eigenes Minecraft-Konto mit eigenen Profilen hat.)
+
 export async function getActiveProfileUuid() {
-  return SecureStore.getItemAsync(ACTIVE_PROFILE_KEY);
+  const active = await getActiveAccount();
+  return active?.activeProfileUuid ?? null;
 }
 
 export async function storeActiveProfileUuid(uuid) {
-  return SecureStore.setItemAsync(ACTIVE_PROFILE_KEY, uuid);
+  const activeUuid = await getActiveAccountUuid();
+  if (!activeUuid) return;
+  await updateAccount(activeUuid, { activeProfileUuid: uuid });
 }
 
 export async function clearActiveProfileUuid() {
-  return SecureStore.deleteItemAsync(ACTIVE_PROFILE_KEY);
-}
-
-// Kompletter Logout: Minecraft-Token, Microsoft-Refresh-Token UND
-// Profil-Wahl zurücksetzen, damit man beim nächsten Start wieder ganz von
-// vorne (Login) startet.
-export async function logout() {
-  await clearActiveProfileUuid();
-  await clearToken();
-  await clearMsRefreshToken();
-  await clearAccountUuid();
+  const activeUuid = await getActiveAccountUuid();
+  if (!activeUuid) return;
+  await updateAccount(activeUuid, { activeProfileUuid: null });
 }

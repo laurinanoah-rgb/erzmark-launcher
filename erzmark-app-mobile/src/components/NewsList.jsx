@@ -3,6 +3,10 @@ import { View, Text, Image, Pressable, Linking, ActivityIndicator, StyleSheet } 
 import { getNews } from "../api/news";
 import { colors, radius, spacing } from "../theme";
 
+// Automatischer Sync-Rhythmus, analog zu NewsFeed.jsx im Launcher - neue
+// Blogbeitraege sollen ohne App-Neustart auftauchen.
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
+
 function formatDate(iso) {
   if (!iso) return "";
   try {
@@ -18,12 +22,21 @@ export default function NewsList({ limit = 4 }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    getNews(limit)
-      .then(setPosts)
-      .catch((err) => {
-        setError(err?.message ?? String(err));
-        setPosts([]);
-      });
+    function refresh() {
+      getNews(limit)
+        .then((result) => {
+          setPosts(result);
+          setError(null);
+        })
+        .catch((err) => {
+          setError(err?.message ?? String(err));
+          setPosts((prev) => prev ?? []);
+        });
+    }
+
+    refresh();
+    const id = setInterval(refresh, AUTO_REFRESH_MS);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

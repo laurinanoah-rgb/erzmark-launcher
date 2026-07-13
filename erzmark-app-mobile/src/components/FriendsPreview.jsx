@@ -4,6 +4,10 @@ import { getFriends } from "../api/friends";
 import { getAccountUuid } from "../api/auth";
 import { colors, radius, spacing } from "../theme";
 
+// Online-Status kann sich jederzeit aendern, analog zu FriendsList.jsx im
+// Launcher - regelmaessig neu laden, waehrend der Screen offen bleibt.
+const AUTO_REFRESH_MS = 60 * 1000;
+
 function formatLastSeen(unixSeconds) {
   if (!unixSeconds) return "";
   const diffMs = Date.now() - unixSeconds * 1000;
@@ -22,16 +26,34 @@ export default function FriendsPreview() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    getAccountUuid()
-      .then((uuid) => getFriends(uuid))
-      .then((result) => {
-        const sorted = [...result].sort((a, b) => Number(b.online) - Number(a.online));
-        setFriends(sorted);
-      })
-      .catch((err) => {
-        setError(err?.message ?? String(err));
-        setFriends([]);
-      });
+    let cancelled = false;
+    let intervalId;
+
+    function refresh(uuid) {
+      getFriends(uuid)
+        .then((result) => {
+          if (cancelled) return;
+          const sorted = [...result].sort((a, b) => Number(b.online) - Number(a.online));
+          setFriends(sorted);
+          setError(null);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setError(err?.message ?? String(err));
+          setFriends((prev) => prev ?? []);
+        });
+    }
+
+    getAccountUuid().then((uuid) => {
+      if (cancelled) return;
+      refresh(uuid);
+      intervalId = setInterval(() => refresh(uuid), AUTO_REFRESH_MS);
+    });
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
   }, []);
 
   const onlineCount = friends?.filter((f) => f.online).length ?? 0;
