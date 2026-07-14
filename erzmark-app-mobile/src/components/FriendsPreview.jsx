@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { getFriends } from "../api/friends";
-import { getAccountUuid } from "../api/auth";
+import { getAccountUuid, getActiveProfileUuid } from "../api/auth";
 import { colors, radius, spacing } from "../theme";
 
 // Online-Status kann sich jederzeit aendern, analog zu FriendsList.jsx im
@@ -44,8 +44,13 @@ export default function FriendsPreview() {
         });
     }
 
-    getAccountUuid().then((uuid) => {
+    // Freunde sind pro MMOProfiles-Charakter getrennt gespeichert (siehe
+    // PlayerController::friendsForProfile im MineTrax-Backend) - deshalb hier
+    // die aktive Profil-UUID nutzen, nicht die feste Account-UUID. Fallback
+    // auf die Account-UUID falls (noch) kein Profil aktiv gewaehlt ist.
+    Promise.all([getActiveProfileUuid(), getAccountUuid()]).then(([activeUuid, accountUuid]) => {
       if (cancelled) return;
+      const uuid = activeUuid ?? accountUuid;
       refresh(uuid);
       intervalId = setInterval(() => refresh(uuid), AUTO_REFRESH_MS);
     });

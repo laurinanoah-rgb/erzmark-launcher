@@ -1,6 +1,6 @@
 [package]
 name = "erzmark-launcher"
-version = "1.3.3"
+version = "1.3.4"
 description = "Erzmark Minecraft-Server Launcher"
 authors = ["Erzmark"]
 edition = "2021"
