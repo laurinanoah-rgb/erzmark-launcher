@@ -16,6 +16,11 @@ import ActiveCharacterCard from "./ActiveCharacterCard.jsx";
 // TODO: echte Links eintragen, sobald vorhanden (Discord-Invite, YouTube-Kanal).
 const DISCORD_URL = "https://discord.gg/erzmark";
 const YOUTUBE_URL = "https://youtube.com/@erzmark";
+// Fuehrt direkt zum eingebetteten Feedback-Formular auf der Beta-Detailseite
+// (siehe #feedback-Anker in resources/default/js/Pages/Beta/ShowBeta.vue auf
+// dem Server) - Beta-Sektion braucht Login + die Rolle "Beta"/Staff, ohne
+// das landet man einfach auf einer "keine Berechtigung"-Seite.
+const FEEDBACK_URL = "https://erzmark.de/beta/erzmark-launcher#feedback";
 
 // Beschriftung des Hauptbuttons je nach Backend-Status (siehe
 // install.rs::PlayStatus – "state" ist einer von diesen drei plus "error").
@@ -110,6 +115,15 @@ function YoutubeIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor">
       <path d="M21.6 7.2s-.2-1.5-.8-2.1c-.8-.8-1.7-.8-2.1-.9C15.9 4 12 4 12 4h0s-3.9 0-6.7.2c-.4 0-1.3.1-2.1.9-.6.6-.8 2.1-.8 2.1S2.2 9 2.2 10.7v1.6c0 1.7.2 3.5.2 3.5s.2 1.5.8 2.1c.8.8 1.8.8 2.3.9 1.7.2 6.5.2 6.5.2s3.9 0 6.7-.2c.4 0 1.3-.1 2.1-.9.6-.6.8-2.1.8-2.1s.2-1.7.2-3.5v-1.6c0-1.7-.2-3.5-.2-3.5ZM9.9 14.6V8.9l5.4 2.9-5.4 2.8Z" />
+    </svg>
+  );
+}
+
+function FeedbackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3.5V16.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z" />
+      <path d="M8 10h8M8 13h5" />
     </svg>
   );
 }
@@ -384,6 +398,16 @@ export default function MainScreen({ session, onLoggedOut }) {
       </footer>
 
       {appVersion && <span className="erzmark-version-corner">v{appVersion}</span>}
+
+      <button
+        type="button"
+        className="erzmark-feedback-corner"
+        onClick={() => openExternalUrl(FEEDBACK_URL).catch(() => {})}
+        title="Feedback zum Launcher geben (erzmark.de-Login nötig)"
+      >
+        <FeedbackIcon />
+        Feedback
+      </button>
 
       {showSettings && <SettingsScreen onClose={() => setShowSettings(false)} />}
       {showSkinChanger && <SkinChangerScreen onClose={() => setShowSkinChanger(false)} />}
