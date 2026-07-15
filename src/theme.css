@@ -897,14 +897,37 @@ body {
 .erzmark-profile-name-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.erzmark-rank-icon-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(45, 54, 67, 0.6);
+  border: 1.5px solid var(--erzmark-color-gold);
+  box-shadow: 0 0 8px rgba(255, 185, 0, 0.45);
 }
 
 .erzmark-rank-icon {
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
   object-fit: contain;
   flex-shrink: 0;
+}
+
+.erzmark-rank-icon-ring--sm {
+  width: 20px;
+  height: 20px;
+}
+
+.erzmark-rank-icon-ring--sm .erzmark-rank-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .erzmark-profile-badge {

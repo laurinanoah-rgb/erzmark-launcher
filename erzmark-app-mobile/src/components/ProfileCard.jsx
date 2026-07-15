@@ -78,7 +78,9 @@ export default function ProfileCard({ profile }) {
         <View style={styles.identity}>
           <View style={styles.nameLine}>
             {profile.rankIconUrl && (
-              <Image source={{ uri: profile.rankIconUrl }} style={styles.rankIcon} />
+              <View style={styles.rankIconRing}>
+                <Image source={{ uri: profile.rankIconUrl }} style={styles.rankIcon} />
+              </View>
             )}
             {rankBadge && (
               <View style={[styles.rankBadge, { backgroundColor: rankBadge.color }]}>
@@ -142,7 +144,22 @@ const styles = StyleSheet.create({
   identity: { gap: 2 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   name: { fontSize: 19, fontWeight: "800", color: colors.text },
-  rankIcon: { width: 20, height: 20, resizeMode: "contain" },
+  rankIconRing: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  rankIcon: { width: 24, height: 24, resizeMode: "contain" },
   rankBadge: {
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,

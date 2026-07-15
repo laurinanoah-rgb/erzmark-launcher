@@ -92,7 +92,9 @@ export default function CharacterProfiles() {
           <div className="erzmark-profile-card-header">
             <span className="erzmark-profile-name-row">
               {active.rankIconUrl && (
-                <img className="erzmark-rank-icon" src={active.rankIconUrl} alt={active.rankName ?? ""} />
+                <span className="erzmark-rank-icon-ring">
+                  <img className="erzmark-rank-icon" src={active.rankIconUrl} alt={active.rankName ?? ""} />
+                </span>
               )}
               <span className="erzmark-profile-class">{active.name ?? prettifyClassName(active.class)}</span>
             </span>

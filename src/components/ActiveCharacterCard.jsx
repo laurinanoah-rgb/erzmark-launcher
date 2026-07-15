@@ -53,7 +53,9 @@ export default function ActiveCharacterCard() {
     <div className="erzmark-active-char-card">
       <span className="erzmark-active-char-class">
         {active.rankIconUrl && (
-          <img className="erzmark-rank-icon" src={active.rankIconUrl} alt={active.rankName ?? ""} />
+          <span className="erzmark-rank-icon-ring erzmark-rank-icon-ring--sm">
+            <img className="erzmark-rank-icon" src={active.rankIconUrl} alt={active.rankName ?? ""} />
+          </span>
         )}
         {prettifyClassName(active.class)}
       </span>
