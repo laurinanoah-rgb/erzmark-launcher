@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import { colors, radius, spacing } from "../theme";
 
 /** "WARRIOR" -> "Warrior", gleiche Formatierung wie CharacterProfiles.jsx im Launcher. */
@@ -25,11 +25,18 @@ function formatCoins(amount) {
   return Math.round(amount).toLocaleString("de-DE");
 }
 
-// Eigenes Badge-Design pro LuckPerms-Rang (siehe ProfileController.php auf
-// dem Server): die echten Ingame-Prefixe sind Nexo-Glyphen/PlaceholderAPI-
-// Platzhalter (z.B. "%nexo_ranksbuilder%"), die nur im Minecraft-Client mit
-// Resourcepack darstellbar sind - hier deshalb eine eigene, zum Erzmark-
-// Stil passende Gestaltung statt eines Nachbaus der Ingame-Grafik.
+function formatPlayTime(totalSeconds) {
+  if (!totalSeconds) return "0h";
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+// Fallback-Textbadge, falls kein rankIconUrl vom Backend mitkommt (z.B. bei
+// einem Rang ohne hinterlegtes Bild) - die echten Ingame-Prefixe sind
+// Nexo-Glyphen/PlaceholderAPI-Platzhalter, die nur im Minecraft-Client mit
+// Resourcepack darstellbar sind, deshalb bevorzugt das echte MineTrax-
+// Rang-Icon (siehe ProfileController.php), sonst dieses eigene Text-Badge.
 // "default" (ganz normaler Spieler, die große Mehrheit) bekommt bewusst
 // KEIN Badge, um die Karte nicht mit einem bedeutungslosen Tag zu überladen.
 const RANK_BADGES = {
@@ -47,10 +54,14 @@ function getRankBadge(rankName) {
 
 /**
  * Profilkarte ganz oben auf dem HomeScreen (unter dem Banner) - zeigt
- * Rang-Badge (LuckPerms), Name, Klasse, Level, Kampf-Stats, Münzen und
- * letzten Spielzeitpunkt des gewählten Profils auf einen Blick. Alle
- * einzelnen Felder sind optional und werden nur angezeigt, wenn vorhanden
- * (robust gegen künftige Backend-Änderungen).
+ * Rang-Icon (LuckPerms/MineTrax), Name, Klasse, Level, Quests/Spielzeit/
+ * Münzen dieses Profils und letzten Spielzeitpunkt auf einen Blick. Jedes
+ * MMOProfiles-Charakterprofil hat seine eigene, unabhängige Kasse und
+ * Spielzeit (siehe ProfileController::mine() im Backend) - deshalb hier
+ * Quests/Spielzeit/Münzen statt der Kampfwerte (Leben/Mana/Ausdauer), die
+ * ohne Maximalwert kaum Aussagekraft hatten. Alle einzelnen Felder sind
+ * optional und werden nur angezeigt, wenn vorhanden (robust gegen künftige
+ * Backend-Änderungen).
  */
 export default function ProfileCard({ profile }) {
   if (!profile) return null;
@@ -58,18 +69,20 @@ export default function ProfileCard({ profile }) {
   const className = prettifyClassName(profile.className);
   const lastPlayed = formatLastPlayed(profile.lastPlayedAt);
   const coins = formatCoins(profile.coins);
-  const rank = getRankBadge(profile.rankName);
-  const hasStats = profile.health != null || profile.mana != null || profile.stamina != null;
-  const hasFooter = lastPlayed || coins;
+  const rankBadge = profile.rankIconUrl ? null : getRankBadge(profile.rankName);
+  const hasStats = profile.questsCompleted != null || profile.playTime != null || profile.coins != null;
 
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.identity}>
           <View style={styles.nameLine}>
-            {rank && (
-              <View style={[styles.rankBadge, { backgroundColor: rank.color }]}>
-                <Text style={styles.rankBadgeText}>{rank.label}</Text>
+            {profile.rankIconUrl && (
+              <Image source={{ uri: profile.rankIconUrl }} style={styles.rankIcon} />
+            )}
+            {rankBadge && (
+              <View style={[styles.rankBadge, { backgroundColor: rankBadge.color }]}>
+                <Text style={styles.rankBadgeText}>{rankBadge.label}</Text>
               </View>
             )}
             <Text style={styles.name}>{profile.name}</Text>
@@ -85,35 +98,24 @@ export default function ProfileCard({ profile }) {
 
       {hasStats && (
         <View style={styles.statsRow}>
-          {profile.health != null && (
-            <View style={styles.statChip}>
-              <Text style={styles.statValue}>❤️ {Math.round(profile.health)}</Text>
-              <Text style={styles.statLabel}>Leben</Text>
-            </View>
-          )}
-          {profile.mana != null && (
-            <View style={styles.statChip}>
-              <Text style={styles.statValue}>🔷 {Math.round(profile.mana)}</Text>
-              <Text style={styles.statLabel}>Mana</Text>
-            </View>
-          )}
-          {profile.stamina != null && (
-            <View style={styles.statChip}>
-              <Text style={styles.statValue}>⚡ {Math.round(profile.stamina)}</Text>
-              <Text style={styles.statLabel}>Ausdauer</Text>
-            </View>
-          )}
+          <View style={styles.statChip}>
+            <Text style={styles.statValue}>📜 {profile.questsCompleted ?? 0}</Text>
+            <Text style={styles.statLabel}>Quests</Text>
+          </View>
+          <View style={styles.statChip}>
+            <Text style={styles.statValue}>⏱ {formatPlayTime(profile.playTime)}</Text>
+            <Text style={styles.statLabel}>Spielzeit</Text>
+          </View>
+          <View style={styles.statChip}>
+            <Text style={styles.statValue}>🪙 {coins ?? 0}</Text>
+            <Text style={styles.statLabel}>Münzen</Text>
+          </View>
         </View>
       )}
 
-      {hasFooter && (
+      {lastPlayed && (
         <View style={styles.footerRow}>
-          <Text style={styles.lastPlayed}>{lastPlayed ? `Zuletzt gespielt: ${lastPlayed}` : ""}</Text>
-          {coins && (
-            <View style={styles.coinsPill}>
-              <Text style={styles.coinsText}>🪙 {coins}</Text>
-            </View>
-          )}
+          <Text style={styles.lastPlayed}>{`Zuletzt gespielt: ${lastPlayed}`}</Text>
         </View>
       )}
     </View>
@@ -140,6 +142,7 @@ const styles = StyleSheet.create({
   identity: { gap: 2 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   name: { fontSize: 19, fontWeight: "800", color: colors.text },
+  rankIcon: { width: 20, height: 20, resizeMode: "contain" },
   rankBadge: {
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
@@ -179,13 +182,4 @@ const styles = StyleSheet.create({
     borderTopColor: colors.goldSoft,
   },
   lastPlayed: { fontSize: 11, color: colors.textMuted },
-  coinsPill: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: colors.goldSoft,
-  },
-  coinsText: { fontSize: 12, fontWeight: "800", color: colors.gold },
 });

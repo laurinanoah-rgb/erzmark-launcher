@@ -8,6 +8,7 @@ const AUTO_REFRESH_MS = 5 * 60 * 1000;
 /** "WARRIOR" -> "Warrior" – reine Anzeige-Formatierung, keine feste
  * Übersetzungstabelle, da sich die Klassen serverseitig ändern können. */
 function prettifyClassName(rawClass) {
+  if (!rawClass) return "Charakter";
   return rawClass
     .toLowerCase()
     .split(/[_\s]+/)
@@ -15,9 +16,13 @@ function prettifyClassName(rawClass) {
     .join(" ");
 }
 
-// Die API liefert nur den zuletzt gespeicherten Wert (z.B. Leben beim
-// Ausloggen), keinen bekannten Maximalwert -> bewusst als schlichte Zahl
-// statt als (potenziell irreführender) Fortschrittsbalken dargestellt.
+function formatPlayTime(totalSeconds) {
+  if (!totalSeconds) return "0h";
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
 function StatChip({ label, value }) {
   if (value == null) return null;
   return (
@@ -29,9 +34,12 @@ function StatChip({ label, value }) {
 }
 
 /**
- * Zeigt die MMOCore-Klassen/-Profile des eingeloggten Spielers an – rein
- * visuell (Level, Erfahrung, Leben/Mana/Ausdauer). Die aktive Klasse wird
- * hervorgehoben, alle weiteren angelegten Klassen kompakt darunter.
+ * Zeigt die MMOProfiles-Charakterprofile des eingeloggten Spielers an – das
+ * aktuell/zuletzt gespielte Profil hervorgehoben, alle weiteren angelegten
+ * Profile kompakt darunter. Jedes Profil hat eine eigene, unabhaengige
+ * Kasse und Spielzeit (siehe profiles.php/ProfileController::mine() im
+ * Backend) - deshalb Quests/Spielzeit/Münzen statt Kampfwerten
+ * (Leben/Mana/Ausdauer), die kaum Aussagekraft ohne Kontext hatten.
  */
 export default function CharacterProfiles() {
   const [profiles, setProfiles] = useState([]);
@@ -82,14 +90,19 @@ export default function CharacterProfiles() {
       {active && (
         <div className="erzmark-profile-card erzmark-profile-card-active">
           <div className="erzmark-profile-card-header">
-            <span className="erzmark-profile-class">{prettifyClassName(active.class)}</span>
+            <span className="erzmark-profile-name-row">
+              {active.rankIconUrl && (
+                <img className="erzmark-rank-icon" src={active.rankIconUrl} alt={active.rankName ?? ""} />
+              )}
+              <span className="erzmark-profile-class">{active.name ?? prettifyClassName(active.class)}</span>
+            </span>
             <span className="erzmark-profile-badge">Aktiv</span>
           </div>
-          <span className="erzmark-profile-level">Level {active.level}</span>
+          <span className="erzmark-profile-level">{prettifyClassName(active.class)} · Level {active.level}</span>
           <div className="erzmark-profile-stats">
-            <StatChip label="Leben" value={active.health} />
-            <StatChip label="Mana" value={active.mana} />
-            <StatChip label="Ausdauer" value={active.stamina} />
+            <StatChip label="Quests" value={active.questsCompleted} />
+            <StatChip label="Spielzeit" value={formatPlayTime(active.playTime)} />
+            <StatChip label="Münzen" value={active.coins} />
           </div>
         </div>
       )}
@@ -97,8 +110,8 @@ export default function CharacterProfiles() {
       {others.length > 0 && (
         <div className="erzmark-profile-others">
           {others.map((p) => (
-            <div key={p.class} className="erzmark-profile-row">
-              <span className="erzmark-profile-row-class">{prettifyClassName(p.class)}</span>
+            <div key={p.uuid} className="erzmark-profile-row">
+              <span className="erzmark-profile-row-class">{p.name ?? prettifyClassName(p.class)}</span>
               <span className="erzmark-profile-row-level">Lvl {p.level}</span>
             </div>
           ))}

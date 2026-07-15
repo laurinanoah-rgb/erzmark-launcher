@@ -1,27 +1,31 @@
-//! Spielstände (MMOCore-Klassen/-Profile) im Launcher anzeigen.
+//! Charakterprofile (MMOProfiles) im Launcher anzeigen.
 //!
-//! Der Server nutzt MMOCore mit MySQL-Backend (Tabelle `mmocore_playerdata`,
-//! `uuid` = echte Mojang-Account-UUID als Primärschlüssel). Die aktive Klasse
-//! liegt direkt in den Spalten der Zeile, alle weiteren vom Spieler
-//! angelegten Klassen (MMOProfiles) stecken als JSON im Feld `class_info`.
-//! Der Launcher hat **keinen** direkten Datenbankzugriff – stattdessen liest
-//! ein kleines read-only PHP-Skript (`public/launcher/profiles.php` auf
-//! erzmark.de, nutzt denselben `erzmark_readonly`-MySQL-User wie
-//! `friends.rs`) die Daten aus und liefert sie als JSON.
+//! Liest dieselbe Datenquelle wie ProfileController::mine() im
+//! Laravel-Backend (profil.mmoprofiles_playerdata + mcmmo.mmocore_playerdata
+//! + coins.Coins + minetrax.player_profiles), aber über ein kleines
+//! read-only PHP-Skript (`public/launcher/profiles.php` auf erzmark.de,
+//! nutzt denselben `erzmark_readonly`-MySQL-User wie `friends.rs`), da der
+//! Launcher keine eigene Login-Session gegen die Laravel-API hat.
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CharacterProfile {
-    pub class: String,
+    pub uuid: String,
+    pub name: String,
     pub active: bool,
+    pub class: Option<String>,
     pub level: i32,
-    pub experience: f64,
-    pub health: Option<f64>,
-    pub mana: Option<f64>,
-    pub stamina: Option<f64>,
-    pub stellium: Option<f64>,
+    #[serde(rename = "questsCompleted")]
+    pub quests_completed: i32,
+    #[serde(rename = "playTime")]
+    pub play_time: i64,
+    pub coins: i64,
+    #[serde(rename = "rankName")]
+    pub rank_name: Option<String>,
+    #[serde(rename = "rankIconUrl")]
+    pub rank_icon_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,9 +33,9 @@ struct ProfilesResponse {
     profiles: Vec<CharacterProfile>,
 }
 
-/// Holt alle Klassen/Profile für die übergebene Spieler-UUID (mit oder ohne
-/// Bindestriche, wird intern normalisiert). Gibt eine leere Liste zurück,
-/// falls der Spieler noch nie mit MMOCore gespielt hat.
+/// Holt alle Charakterprofile für die übergebene Spieler-UUID (mit oder
+/// ohne Bindestriche, wird intern normalisiert). Gibt eine leere Liste
+/// zurück, falls der Spieler noch nie ein MMOProfiles-Profil angelegt hat.
 pub async fn fetch_profiles(client: &reqwest::Client, uuid: &str) -> Result<Vec<CharacterProfile>> {
     let dashed = to_dashed_uuid(uuid);
 

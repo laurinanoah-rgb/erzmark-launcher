@@ -894,6 +894,19 @@ body {
   color: var(--erzmark-color-text);
 }
 
+.erzmark-profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.erzmark-rank-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .erzmark-profile-badge {
   font-size: 10px;
   font-weight: 700;
@@ -1190,6 +1203,9 @@ body {
 }
 
 .erzmark-active-char-class {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
