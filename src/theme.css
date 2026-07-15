@@ -208,12 +208,20 @@ body {
   overflow: hidden;
 }
 
-/* Versionsnummer, dezent aber gut lesbar unten links im Launcher-Fenster. */
-.erzmark-version-corner {
+/* Version + Feedback-Button zusammen unten links im Launcher-Fenster - vorher
+   je in eigener Ecke (Version links, Feedback rechts), jetzt als Paar
+   "Version - Feedback" gruppiert. */
+.erzmark-bottom-left-corner {
   position: absolute;
   left: 14px;
   bottom: 10px;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.erzmark-version-corner {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -226,15 +234,11 @@ body {
   user-select: none;
 }
 
-/* Feedback-Button unten rechts, Gegenstück zur Versionsnummer unten links -
-   fuehrt zur Beta-Detailseite auf erzmark.de (#feedback-Anker beim
-   eingebetteten Formular). Klickbar (im Gegensatz zur Versionsnummer), daher
-   dezent auffaelliger + Hover-State. */
+/* Feedback-Button, Gegenstück zur Versionsnummer - fuehrt zur
+   Beta-Detailseite auf erzmark.de (#feedback-Anker beim eingebetteten
+   Formular). Klickbar (im Gegensatz zur Versionsnummer), daher dezent
+   auffaelliger + Hover-State. */
 .erzmark-feedback-corner {
-  position: absolute;
-  right: 14px;
-  bottom: 10px;
-  z-index: 3;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -425,7 +429,7 @@ body {
 
 .erzmark-hero-name {
   font-family: var(--erzmark-font-display);
-  font-size: 22px;
+  font-size: 25px;
   font-weight: 700;
   letter-spacing: 0.03em;
   color: var(--erzmark-color-text);
@@ -1152,11 +1156,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  min-width: 280px;
-  padding: 14px 30px;
+  gap: 16px;
+  min-width: 320px;
+  padding: 17px 36px;
   border: 1px solid rgba(255, 185, 0, 0.5);
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
   background: linear-gradient(180deg, rgba(45, 54, 67, 0.9), rgba(23, 29, 38, 0.95));
   box-shadow: 0 0 0 rgba(255, 185, 0, 0), 0 10px 24px rgba(0, 0, 0, 0.35);
@@ -1186,8 +1190,8 @@ body {
 }
 
 .erzmark-btn-play-icon {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
   color: var(--erzmark-color-gold);
   filter: drop-shadow(0 0 5px rgba(255, 185, 0, 0.5));
@@ -1199,7 +1203,7 @@ body {
 
 .erzmark-btn-launch-label {
   font-weight: 800;
-  font-size: 16px;
+  font-size: 18px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--erzmark-color-text);
@@ -1207,7 +1211,7 @@ body {
 }
 
 .erzmark-btn-launch-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--erzmark-color-text-muted);
 }
 
@@ -1217,8 +1221,8 @@ body {
 .erzmark-active-char-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 18px;
+  gap: 12px;
+  padding: 10px 22px;
   border-radius: 999px;
   border: 1px solid rgba(66, 183, 250, 0.35);
   background: rgba(45, 54, 67, 0.45);
@@ -1228,8 +1232,8 @@ body {
 .erzmark-active-char-class {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 7px;
+  font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1237,19 +1241,19 @@ body {
 }
 
 .erzmark-active-char-level {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--erzmark-color-text-muted);
-  padding-left: 10px;
+  padding-left: 12px;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .erzmark-active-char-stats {
   display: flex;
-  gap: 8px;
-  font-size: 11px;
+  gap: 9px;
+  font-size: 12px;
   color: var(--erzmark-color-text-muted);
-  padding-left: 10px;
+  padding-left: 12px;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 

@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCharacterProfiles } from "../api/profiles.js";
+
+const AUTO_REFRESH_MS = 30 * 1000;
 
 /** "WARRIOR" -> "Warrior" – gleiche Formatierung wie in CharacterProfiles.jsx. */
 function prettifyClassName(rawClass) {
@@ -30,20 +32,28 @@ function formatPlayTime(totalSeconds) {
  */
 export default function ActiveCharacterCard() {
   const [active, setActive] = useState(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
-    getCharacterProfiles()
-      .then((profiles) => {
-        if (cancelled) return;
-        setActive(profiles.find((p) => p.active) ?? null);
-      })
-      .catch(() => {
-        // Bewusst leise ignorieren – nur eine dezente Zusatzinfo, kein
-        // kritischer Bestandteil des Hauptbildschirms.
-      });
+
+    function refresh() {
+      getCharacterProfiles()
+        .then((profiles) => {
+          if (cancelled) return;
+          setActive(profiles.find((p) => p.active) ?? null);
+        })
+        .catch(() => {
+          // Bewusst leise ignorieren – nur eine dezente Zusatzinfo, kein
+          // kritischer Bestandteil des Hauptbildschirms.
+        });
+    }
+
+    refresh();
+    timerRef.current = window.setInterval(refresh, AUTO_REFRESH_MS);
     return () => {
       cancelled = true;
+      window.clearInterval(timerRef.current);
     };
   }, []);
 

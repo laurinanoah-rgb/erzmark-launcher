@@ -301,7 +301,7 @@ export default function MainScreen({ session, onLoggedOut }) {
 
               {heroSkinUrl && (
                 <div className="erzmark-hero-skin" aria-hidden="true">
-                  <SkinMirror skinUrl={heroSkinUrl} width={280} height={420} emotes />
+                  <SkinMirror skinUrl={heroSkinUrl} width={320} height={480} emotes />
                 </div>
               )}
 
@@ -397,17 +397,19 @@ export default function MainScreen({ session, onLoggedOut }) {
         </div>
       </footer>
 
-      {appVersion && <span className="erzmark-version-corner">v{appVersion}</span>}
+      <div className="erzmark-bottom-left-corner">
+        {appVersion && <span className="erzmark-version-corner">v{appVersion}</span>}
 
-      <button
-        type="button"
-        className="erzmark-feedback-corner"
-        onClick={() => openExternalUrl(FEEDBACK_URL).catch(() => {})}
-        title="Feedback zum Launcher geben (erzmark.de-Login nötig)"
-      >
-        <FeedbackIcon />
-        Feedback
-      </button>
+        <button
+          type="button"
+          className="erzmark-feedback-corner"
+          onClick={() => openExternalUrl(FEEDBACK_URL).catch(() => {})}
+          title="Feedback zum Launcher geben (erzmark.de-Login nötig)"
+        >
+          <FeedbackIcon />
+          Feedback
+        </button>
+      </div>
 
       {showSettings && <SettingsScreen onClose={() => setShowSettings(false)} />}
       {showSkinChanger && <SkinChangerScreen onClose={() => setShowSkinChanger(false)} />}

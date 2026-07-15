@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getCharacterProfiles } from "../api/profiles.js";
 
-// Stats ändern sich nur durch Spielen, nicht in Echtzeit -> reicht, seltener
-// als z.B. die Freundesliste neu zu laden.
-const AUTO_REFRESH_MS = 5 * 60 * 1000;
+const AUTO_REFRESH_MS = 30 * 1000;
 
 /** "WARRIOR" -> "Warrior" – reine Anzeige-Formatierung, keine feste
  * Übersetzungstabelle, da sich die Klassen serverseitig ändern können. */
@@ -102,9 +100,9 @@ export default function CharacterProfiles() {
           </div>
           <span className="erzmark-profile-level">{prettifyClassName(active.class)} · Level {active.level}</span>
           <div className="erzmark-profile-stats">
-            <StatChip label="Quests" value={active.questsCompleted} />
-            <StatChip label="Spielzeit" value={formatPlayTime(active.playTime)} />
-            <StatChip label="Münzen" value={active.coins} />
+            <StatChip label="Quests" value={`📜 ${active.questsCompleted ?? 0}`} />
+            <StatChip label="Spielzeit" value={`⏱ ${formatPlayTime(active.playTime)}`} />
+            <StatChip label="Münzen" value={`🪙 ${active.coins ?? 0}`} />
           </div>
         </div>
       )}

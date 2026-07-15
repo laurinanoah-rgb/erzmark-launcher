@@ -70,7 +70,14 @@ export default function ProfileSelectScreen({ onProfileSelected, onLogout }) {
         )}
         ListEmptyComponent={
           profiles !== undefined && !error ? (
-            <Text style={styles.placeholder}>Keine Profile gefunden.</Text>
+            <View style={styles.emptyBox}>
+              <Text style={styles.placeholder}>Kein Profil gefunden.</Text>
+              <Text style={styles.placeholderHint}>
+                So bekommst du eins: Starte Minecraft, verbinde dich mit dem Erzmark-Server, klicke dort
+                auf „Play" und wähle im sich öffnenden Menü deinen Charakter aus (oder erstelle einen
+                neuen). Danach erscheint er automatisch auch hier in der App.
+              </Text>
+            </View>
           ) : null
         }
       />
@@ -86,7 +93,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0e0f12", padding: 20, paddingTop: 70 },
   title: { fontSize: 26, fontWeight: "700", color: "#f2c94c", marginBottom: 6 },
   subtitle: { fontSize: 14, color: "#c7c9d1", marginBottom: 24 },
-  placeholder: { color: "#8a8d98", marginTop: 12 },
+  emptyBox: { marginTop: 12, gap: 8 },
+  placeholder: { color: "#c7c9d1", fontSize: 15, fontWeight: "600" },
+  placeholderHint: { color: "#8a8d98", fontSize: 13, lineHeight: 19 },
   error: { color: "#ff6b6b", marginBottom: 12 },
   profileCard: { backgroundColor: "#1a1c22", borderRadius: 12, padding: 16, borderWidth: 1, borderColor: "#262832" },
   profileName: { color: "#f4f5f7", fontSize: 17, fontWeight: "600" },

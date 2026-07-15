@@ -3,7 +3,7 @@ import { getFriends } from "../api/friends.js";
 
 // Online-Status kann sich jederzeit ändern -> regelmäßig neu laden, während
 // der Launcher offen bleibt.
-const AUTO_REFRESH_MS = 60 * 1000;
+const AUTO_REFRESH_MS = 30 * 1000;
 
 function formatLastSeen(unixSeconds) {
   if (!unixSeconds) return "";
