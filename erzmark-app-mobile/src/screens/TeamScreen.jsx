@@ -8,7 +8,7 @@ import { colors, radius, spacing } from "../theme";
 // hier oeffnet nur ein Portal-Button den System-Browser dorthin. Login
 // laeuft separat ueber den normalen MineTrax-Website-Account (eigenes
 // Auth-System, unabhaengig vom Minecraft/Xbox-Login dieser App).
-const CLOUDNET_URL = "https://erzmark.de/admin/cloudnet/dashboard";
+const CLOUDNET_URL = "https://erzmark.de/admin/cloudnet";
 
 /**
  * Team-Tab, nur sichtbar fuer Profile mit Team-Rang (siehe STAFF_RANKS in
