@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator } from "react-native";
-import { getMyProfiles } from "../api/profiles";
+import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator, Platform } from "react-native";
+import Constants from "expo-constants";
+import { getMyProfiles, reportAppError } from "../api/profiles";
 import { getStoredToken, storeActiveProfileUuid, logout } from "../api/auth";
 
 /**
@@ -19,6 +20,7 @@ export default function ProfileSelectScreen({ onProfileSelected, onLogout }) {
   const [profiles, setProfiles] = useState(undefined); // undefined = lädt
   const [error, setError] = useState(null);
   const [selecting, setSelecting] = useState(null);
+  const [reportStatus, setReportStatus] = useState(null); // null | "sending" | "sent" | "failed"
 
   useEffect(() => {
     getStoredToken()
@@ -45,13 +47,50 @@ export default function ProfileSelectScreen({ onProfileSelected, onLogout }) {
     onLogout(remaining);
   }
 
+  async function handleReportError() {
+    setReportStatus("sending");
+    try {
+      const token = await getStoredToken();
+      await reportAppError(token, {
+        message: error,
+        context: "ProfileSelectScreen",
+        appVersion: Constants.expoConfig?.version ?? "0.0.0",
+        platform: Platform.OS,
+      });
+      setReportStatus("sent");
+    } catch {
+      setReportStatus("failed");
+    }
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Profil wählen</Text>
       <Text style={styles.subtitle}>Mit welchem Charakter möchtest du weitermachen?</Text>
 
       {profiles === undefined && <ActivityIndicator color="#f2c94c" style={{ marginTop: 24 }} />}
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.error}>{error}</Text>
+          {reportStatus === "sent" ? (
+            <Text style={styles.reportSent}>✓ Fehler wurde ans Team gemeldet, danke!</Text>
+          ) : (
+            <Pressable
+              style={styles.reportButton}
+              onPress={handleReportError}
+              disabled={reportStatus === "sending"}
+            >
+              {reportStatus === "sending" ? (
+                <ActivityIndicator color="#0e0f12" size="small" />
+              ) : (
+                <Text style={styles.reportButtonText}>
+                  {reportStatus === "failed" ? "Fehlgeschlagen, nochmal versuchen" : "Fehler melden"}
+                </Text>
+              )}
+            </Pressable>
+          )}
+        </View>
+      )}
 
       <FlatList
         data={profiles ?? []}
@@ -96,7 +135,17 @@ const styles = StyleSheet.create({
   emptyBox: { marginTop: 12, gap: 8 },
   placeholder: { color: "#c7c9d1", fontSize: 15, fontWeight: "600" },
   placeholderHint: { color: "#8a8d98", fontSize: 13, lineHeight: 19 },
-  error: { color: "#ff6b6b", marginBottom: 12 },
+  errorBox: { marginBottom: 20, gap: 10 },
+  error: { color: "#ff6b6b" },
+  reportButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#f2c94c",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  reportButtonText: { color: "#0e0f12", fontSize: 13, fontWeight: "700" },
+  reportSent: { color: "#6bcf7f", fontSize: 13, fontWeight: "600" },
   profileCard: { backgroundColor: "#1a1c22", borderRadius: 12, padding: 16, borderWidth: 1, borderColor: "#262832" },
   profileName: { color: "#f4f5f7", fontSize: 17, fontWeight: "600" },
   profileMeta: { color: "#8a8d98", fontSize: 13, marginTop: 4 },

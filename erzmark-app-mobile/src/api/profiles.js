@@ -13,3 +13,14 @@ import { apiRequest } from "./client";
 export function getMyProfiles(token) {
   return apiRequest("/profiles/mine", { token });
 }
+
+// "Fehler melden"-Button (z.B. auf ProfileSelectScreen bei einem API-
+// Fehler) - schickt dem Team eine Glocken-Benachrichtigung auf MineTrax
+// mit den wichtigsten Details (siehe AppErrorReportController.php).
+export function reportAppError(token, { message, context, appVersion, platform }) {
+  return apiRequest("/error-reports", {
+    method: "POST",
+    token,
+    body: { message, context, app_version: appVersion, platform },
+  });
+}

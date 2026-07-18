@@ -15,8 +15,10 @@ import FriendsScreen from "../screens/FriendsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import SplashScreen from "../screens/SplashScreen";
+import TeamScreen from "../screens/TeamScreen";
 
 import { checkForAppUpdate } from "../api/updateCheck";
+import { getMyProfiles } from "../api/profiles";
 import {
   getStoredToken,
   getActiveProfileUuid,
@@ -26,6 +28,13 @@ import {
   switchAccount,
   loginWithMinecraft,
 } from "../api/auth";
+
+// Team-Raenge mit Zugriff auf das CloudNet-Webinterface (siehe
+// CloudNetTeamController.php auf der Website - deckt sich mit den dort als
+// "isTeamRank" markierten LuckPerms-Gruppen, ohne "builder"). Nur eine
+// UI-Abkuerzung: der echte Zugriffsschutz laeuft serverseitig ueber die
+// Spatie-Permission "access cloudnet webinterface" auf dem Website-Login.
+const STAFF_RANKS = ["owner", "dev", "mod", "supp"];
 
 // Mindestdauer fuer die Start-Animation (SplashScreen.jsx) - ohne das
 // wuerde sie auf schnellen Geraeten/mit bereits gueltigem Token oft nur ein
@@ -52,10 +61,11 @@ const TAB_ICONS = {
   Gilden: "🛡️",
   Freunde: "👥",
   Profil: "🙂",
+  Team: "🛠️",
   Einstellungen: "⚙️",
 };
 
-function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount }) {
+function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, isStaff }) {
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
@@ -70,6 +80,7 @@ function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount }) 
       <Tabs.Screen name="Gilden" component={GuildStackScreen} />
       <Tabs.Screen name="Freunde" component={FriendsScreen} />
       <Tabs.Screen name="Profil" component={ProfileScreen} />
+      {isStaff && <Tabs.Screen name="Team" component={TeamScreen} />}
       <Tabs.Screen name="Einstellungen">
         {() => (
           <SettingsScreen
@@ -100,6 +111,31 @@ export default function AppNavigator() {
   const [token, setToken] = useState(undefined);
   const [activeProfileUuid, setActiveProfileUuid] = useState(undefined);
   const [splashMinDurationDone, setSplashMinDurationDone] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
+
+  // Team-Tab-Sichtbarkeit haengt vom Rang des AKTIVEN Profils ab (nicht vom
+  // Account als Ganzes) - jedes Profil hat seinen eigenen LuckPerms-Rang.
+  // Bewusst separat von HomeScreen's eigenem getMyProfiles()-Aufruf, damit
+  // der Navigator nicht auf den HomeScreen-Datenfluss angewiesen ist.
+  useEffect(() => {
+    if (!token || !activeProfileUuid) {
+      setIsStaff(false);
+      return;
+    }
+    let cancelled = false;
+    getMyProfiles(token)
+      .then((profiles) => {
+        if (cancelled) return;
+        const active = profiles.find((p) => p.uuid === activeProfileUuid);
+        setIsStaff(STAFF_RANKS.includes(active?.rankName));
+      })
+      .catch(() => {
+        if (!cancelled) setIsStaff(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, activeProfileUuid]);
 
   useEffect(() => {
     checkForAppUpdate()
@@ -206,6 +242,7 @@ export default function AppNavigator() {
                 onSwitchProfile={handleSwitchProfile}
                 onSwitchAccount={handleSwitchAccount}
                 onAddAccount={handleAddAccount}
+                isStaff={isStaff}
               />
             )}
           </RootStack.Screen>
