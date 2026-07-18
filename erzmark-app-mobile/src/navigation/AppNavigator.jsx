@@ -29,13 +29,6 @@ import {
   loginWithMinecraft,
 } from "../api/auth";
 
-// Team-Raenge mit Zugriff auf das CloudNet-Webinterface (siehe
-// CloudNetTeamController.php auf der Website - deckt sich mit den dort als
-// "isTeamRank" markierten LuckPerms-Gruppen, ohne "builder"). Nur eine
-// UI-Abkuerzung: der echte Zugriffsschutz laeuft serverseitig ueber die
-// Spatie-Permission "access cloudnet webinterface" auf dem Website-Login.
-const STAFF_RANKS = ["owner", "dev", "mod", "supp"];
-
 // Mindestdauer fuer die Start-Animation (SplashScreen.jsx) - ohne das
 // wuerde sie auf schnellen Geraeten/mit bereits gueltigem Token oft nur ein
 // paar Millisekunden aufblitzen, bevor direkt der Home-Screen erscheint.
@@ -113,10 +106,13 @@ export default function AppNavigator() {
   const [splashMinDurationDone, setSplashMinDurationDone] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
 
-  // Team-Tab-Sichtbarkeit haengt vom Rang des AKTIVEN Profils ab (nicht vom
-  // Account als Ganzes) - jedes Profil hat seinen eigenen LuckPerms-Rang.
-  // Bewusst separat von HomeScreen's eigenem getMyProfiles()-Aufruf, damit
-  // der Navigator nicht auf den HomeScreen-Datenfluss angewiesen ist.
+  // Team-Tab-Sichtbarkeit: echte MineTrax-Website-Berechtigung des
+  // verknuepften Accounts ("access cloudnet webinterface", siehe
+  // ProfileController::mine() -> isStaff), NICHT der Minecraft-Rang - vor
+  // dem Account-Merge vom 18.07.2026 war der App-Login ein eigener,
+  // unverknuepfter User ohne diese Berechtigung, ein Rang-Raten war da die
+  // einzige Naeherung. Jetzt zeigt jedes Profil dasselbe isStaff (haengt am
+  // Account, nicht am einzelnen Charakter), reicht also, das erste zu lesen.
   useEffect(() => {
     if (!token || !activeProfileUuid) {
       setIsStaff(false);
@@ -126,8 +122,8 @@ export default function AppNavigator() {
     getMyProfiles(token)
       .then((profiles) => {
         if (cancelled) return;
-        const active = profiles.find((p) => p.uuid === activeProfileUuid);
-        setIsStaff(STAFF_RANKS.includes(active?.rankName));
+        const active = profiles.find((p) => p.uuid === activeProfileUuid) ?? profiles[0];
+        setIsStaff(active?.isStaff === true);
       })
       .catch(() => {
         if (!cancelled) setIsStaff(false);
