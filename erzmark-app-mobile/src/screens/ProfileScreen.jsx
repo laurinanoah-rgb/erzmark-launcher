@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, Image, StyleSheet, Animated, Easing, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Image, Pressable, StyleSheet, Animated, Easing, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getMyProfiles } from "../api/profiles";
+import * as ImagePicker from "expo-image-picker";
+import {
+  getMyProfiles,
+  uploadProfilePhoto,
+  removeProfilePhoto,
+  uploadProfileCover,
+  removeProfileCover,
+} from "../api/profiles";
 import { getStoredToken, getActiveProfileUuid, getAccountUuid } from "../api/auth";
 import CoinPouch from "../components/CoinPouch";
 import { colors, radius, spacing } from "../theme";
@@ -91,10 +98,19 @@ function StatTile({ icon, value, label, index }) {
  * bräuchte eine neue native Abhängigkeit (z.B. react-native-webview für
  * skinview3d, react-native-view-shot fürs Teilen), die noch nicht im Projekt
  * installiert ist und einen neuen EAS-Build nötig macht. Siehe HANDOFF.md.
+ *
+ * Profilbild/Titelbild (19.07.2026, Nutzerwunsch): eigenes, hochladbares
+ * Bild PRO Charakterprofil (nicht pro Account) - ersetzt/überlagert den
+ * automatischen Minecraft-Skin-Avatar nur, wenn eines gesetzt ist, der
+ * Skin bleibt sonst der Fallback. Titelbild liegt als Banner hinter dem
+ * Hero-Bereich.
  */
 export default function ProfileScreen() {
+  const [token, setToken] = useState(null);
   const [accountUuid, setAccountUuid] = useState(null);
   const [activeProfile, setActiveProfile] = useState(undefined);
+  const [uploadingField, setUploadingField] = useState(null); // "photo" | "cover" | null
+  const [uploadError, setUploadError] = useState(null);
 
   const heroFade = useRef(new Animated.Value(0)).current;
   const heroScale = useRef(new Animated.Value(0.92)).current;
@@ -103,15 +119,16 @@ export default function ProfileScreen() {
     let cancelled = false;
 
     async function refresh() {
-      const [token, activeUuid, realUuid] = await Promise.all([
+      const [t, activeUuid, realUuid] = await Promise.all([
         getStoredToken(),
         getActiveProfileUuid(),
         getAccountUuid(),
       ]);
       if (cancelled) return;
+      setToken(t);
       setAccountUuid(realUuid);
       try {
-        const profiles = await getMyProfiles(token);
+        const profiles = await getMyProfiles(t);
         if (cancelled) return;
         const match = profiles.find((p) => p.uuid === activeUuid) ?? profiles[0] ?? null;
         setActiveProfile(match);
@@ -127,6 +144,57 @@ export default function ProfileScreen() {
       clearInterval(id);
     };
   }, []);
+
+  async function pickAndUpload(field) {
+    setUploadError(null);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setUploadError("Zugriff auf Fotos wurde nicht erlaubt.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: field === "cover" ? [16, 9] : [1, 1],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    setUploadingField(field);
+    try {
+      const response =
+        field === "photo"
+          ? await uploadProfilePhoto(token, activeProfile.uuid, result.assets[0])
+          : await uploadProfileCover(token, activeProfile.uuid, result.assets[0]);
+      setActiveProfile((prev) => ({
+        ...prev,
+        photoUrl: field === "photo" ? response.photoUrl : prev.photoUrl,
+        coverUrl: field === "cover" ? response.coverUrl : prev.coverUrl,
+      }));
+    } catch (err) {
+      setUploadError(err?.message ?? String(err));
+    } finally {
+      setUploadingField(null);
+    }
+  }
+
+  async function removeImage(field) {
+    setUploadError(null);
+    setUploadingField(field);
+    try {
+      if (field === "photo") {
+        await removeProfilePhoto(token, activeProfile.uuid);
+        setActiveProfile((prev) => ({ ...prev, photoUrl: null }));
+      } else {
+        await removeProfileCover(token, activeProfile.uuid);
+        setActiveProfile((prev) => ({ ...prev, coverUrl: null }));
+      }
+    } catch (err) {
+      setUploadError(err?.message ?? String(err));
+    } finally {
+      setUploadingField(null);
+    }
+  }
 
   useEffect(() => {
     if (activeProfile === undefined) return;
@@ -160,17 +228,59 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Animated.View style={[styles.hero, { opacity: heroFade, transform: [{ scale: heroScale }] }]}>
-          <View style={styles.skinRing}>
-            {accountUuid ? (
-              <Image
-                source={{ uri: `https://crafatar.com/avatars/${accountUuid}?size=128&overlay` }}
-                style={styles.skinImage}
-              />
-            ) : (
-              <View style={styles.skinImage} />
+        <View style={styles.coverWrap}>
+          {activeProfile.coverUrl ? (
+            <Image source={{ uri: activeProfile.coverUrl }} style={styles.coverImage} />
+          ) : (
+            <View style={styles.coverPlaceholder} />
+          )}
+          <View style={styles.coverActionsRow}>
+            <Pressable
+              style={styles.coverActionBtn}
+              onPress={() => pickAndUpload("cover")}
+              disabled={uploadingField === "cover"}
+            >
+              <Text style={styles.coverActionText}>
+                {uploadingField === "cover" ? "Lädt…" : activeProfile.coverUrl ? "Titelbild ändern" : "Titelbild hinzufügen"}
+              </Text>
+            </Pressable>
+            {activeProfile.coverUrl && uploadingField !== "cover" && (
+              <Pressable style={styles.coverActionBtn} onPress={() => removeImage("cover")}>
+                <Text style={styles.coverActionTextDanger}>Entfernen</Text>
+              </Pressable>
             )}
           </View>
+        </View>
+
+        <Animated.View style={[styles.hero, { opacity: heroFade, transform: [{ scale: heroScale }] }]}>
+          <Pressable style={styles.skinRing} onPress={() => pickAndUpload("photo")} disabled={uploadingField === "photo"}>
+            <View style={styles.skinRingInner}>
+              {activeProfile.photoUrl ? (
+                <Image source={{ uri: activeProfile.photoUrl }} style={styles.skinImage} />
+              ) : accountUuid ? (
+                <Image
+                  source={{ uri: `https://crafatar.com/avatars/${accountUuid}?size=128&overlay` }}
+                  style={styles.skinImage}
+                />
+              ) : (
+                <View style={styles.skinImage} />
+              )}
+              {uploadingField === "photo" && (
+                <View style={styles.skinUploadOverlay}>
+                  <ActivityIndicator color={colors.gold} />
+                </View>
+              )}
+            </View>
+            <View style={styles.editBadge}>
+              <Text style={styles.editBadgeText}>✎</Text>
+            </View>
+          </Pressable>
+          {activeProfile.photoUrl && (
+            <Pressable onPress={() => removeImage("photo")} disabled={uploadingField === "photo"}>
+              <Text style={styles.removePhotoLink}>Eigenes Profilbild entfernen</Text>
+            </Pressable>
+          )}
+          {uploadError && <Text style={styles.error}>{uploadError}</Text>}
 
           <View style={styles.nameLine}>
             {activeProfile.rankIconUrl && (
@@ -215,6 +325,54 @@ const styles = StyleSheet.create({
   centered: { alignItems: "center", justifyContent: "center" },
   empty: { color: colors.textMuted },
   scrollContent: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg },
+  coverWrap: {
+    height: 120,
+    borderRadius: radius.md,
+    overflow: "hidden",
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+  },
+  coverImage: { width: "100%", height: "100%", resizeMode: "cover" },
+  coverPlaceholder: { flex: 1, backgroundColor: colors.bgElevated },
+  coverActionsRow: {
+    position: "absolute",
+    bottom: spacing.sm,
+    right: spacing.sm,
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  coverActionBtn: {
+    backgroundColor: "rgba(15,19,26,0.75)",
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  coverActionText: { fontSize: 11, fontWeight: "700", color: colors.gold },
+  coverActionTextDanger: { fontSize: 11, fontWeight: "700", color: colors.danger },
+  skinUploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15,19,26,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 56,
+  },
+  editBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.gold,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.bg,
+  },
+  editBadgeText: { fontSize: 13, color: colors.bg, fontWeight: "800" },
+  removePhotoLink: { fontSize: 11, color: colors.textMuted, textDecorationLine: "underline" },
+  error: { fontSize: 12, color: colors.danger },
   hero: { alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
   skinRing: {
     width: 112,
@@ -230,7 +388,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 14,
     elevation: 6,
+  },
+  skinRingInner: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
     overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
   skinImage: { width: 88, height: 88, resizeMode: "contain" },
   nameLine: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
