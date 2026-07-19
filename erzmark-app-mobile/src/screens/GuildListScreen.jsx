@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, FlatList, Modal, TextInput, ScrollView, ActivityIndicator } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { View, Text, Pressable, StyleSheet, Modal, TextInput, ScrollView, ActivityIndicator, Animated, Easing, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   getMyGuild,
@@ -26,9 +26,9 @@ const PERMISSION_LABELS = {
 const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS);
 
 const TABS = [
-  { id: "members", label: "Mitglieder" },
-  { id: "rules", label: "Regeln" },
-  { id: "events", label: "Events" },
+  { id: "members", label: "Mitglieder", icon: "👥" },
+  { id: "rules", label: "Regeln", icon: "📜" },
+  { id: "events", label: "Events", icon: "📅" },
 ];
 
 function formatEventDate(iso) {
@@ -40,23 +40,63 @@ function formatEventDate(iso) {
   }
 }
 
+/** Wrapper, der Kinder gestaffelt (per `index`) einfaden/einrutschen lässt - gleiches Muster wie ProfileSelectScreen/ProfileScreen/FriendsScreen. */
+function FadeInItem({ index = 0, children, style }) {
+  const entrance = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: 340,
+      delay: Math.min(index, 10) * 55,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity: entrance,
+          transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
 /**
  * "Meine Gilde"-Screen - MMOCore erlaubt nur eine Gilde pro Spieler (siehe
  * api/guilds.js), daher eine Detailansicht statt einer Liste. Mitgliedschaft
  * (Beitreten/Verlassen) bleibt In-Game; Beschreibung/Regeln/Rollen/Events
  * werden hier verwaltet, jeweils nur sichtbar/bearbeitbar entsprechend
  * `guild.myPermissions` (server-seitig ohnehin nochmal geprüft).
+ *
+ * Design (19.07.2026) nach Facebook-Gruppen-Vorbild: fester Tab-Kopf
+ * (Mitglieder/Regeln/Events, jeweils mit Icon), animierter Crossfade+Slide
+ * beim Tab-Wechsel, Editier-Dialoge als von unten einfahrende Bottom-Sheets
+ * statt zentrierter Fenster - der Gildeninhaber (und wer die passende Rolle/
+ * Berechtigung hat) kann so jeden Bereich direkt an Ort und Stelle bearbeiten.
  */
 export default function GuildListScreen({ navigation }) {
   const [token, setToken] = useState(null);
   const [guild, setGuild] = useState(undefined); // undefined = lädt, null = keine Gilde
   const [activeTab, setActiveTab] = useState("members");
+  const [tabDirection, setTabDirection] = useState(1);
 
   const [descEditorVisible, setDescEditorVisible] = useState(false);
   const [rulesEditorVisible, setRulesEditorVisible] = useState(false);
   const [roleEditorFor, setRoleEditorFor] = useState(undefined); // undefined=zu, null=neu, Rolle=bearbeiten
   const [assignRoleFor, setAssignRoleFor] = useState(null); // Mitglied, dem gerade eine Rolle zugewiesen wird
   const [eventEditorFor, setEventEditorFor] = useState(undefined); // undefined=zu, null=neu, Event=bearbeiten
+
+  const headerFade = useRef(new Animated.Value(0)).current;
+  const tabTransition = useRef(new Animated.Value(1)).current;
 
   const reload = useCallback(async () => {
     const t = token ?? (await getStoredToken());
@@ -73,6 +113,28 @@ export default function GuildListScreen({ navigation }) {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (guild) {
+      Animated.timing(headerFade, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!guild]);
+
+  function switchTab(tabId) {
+    if (tabId === activeTab) return;
+    const fromIndex = TABS.findIndex((t) => t.id === activeTab);
+    const toIndex = TABS.findIndex((t) => t.id === tabId);
+    setTabDirection(toIndex > fromIndex ? 1 : -1);
+    setActiveTab(tabId);
+    tabTransition.setValue(0);
+    Animated.timing(tabTransition, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }
 
   if (guild === undefined) {
     return (
@@ -98,62 +160,83 @@ export default function GuildListScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
+      <Animated.View
+        style={[
+          styles.header,
+          { opacity: headerFade, transform: [{ translateY: headerFade.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }] },
+        ]}
+      >
+        <View style={styles.headerAccent} />
         <Text style={styles.guildName}>[{guild.tag}] {guild.name}</Text>
         <Text style={styles.memberCount}>{guild.members.length} Mitglieder</Text>
-      </View>
+      </Animated.View>
 
       <View style={styles.tabRail}>
         {TABS.map((tab) => (
           <Pressable
             key={tab.id}
             style={[styles.tabBtn, activeTab === tab.id && styles.tabBtnActive]}
-            onPress={() => setActiveTab(tab.id)}
+            onPress={() => switchTab(tab.id)}
           >
+            <Text style={styles.tabBtnIcon}>{tab.icon}</Text>
             <Text style={[styles.tabBtnText, activeTab === tab.id && styles.tabBtnTextActive]}>{tab.label}</Text>
           </Pressable>
         ))}
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tabContent}>
-        {activeTab === "members" && (
-          <MembersTab
-            guild={guild}
-            can={can}
-            onAssignRole={(member) => setAssignRoleFor(member)}
-            onManageRoles={() => setRoleEditorFor(null)}
-            onEditRole={(role) => setRoleEditorFor(role)}
-          />
-        )}
-
-        {activeTab === "rules" && (
-          <View style={{ gap: spacing.md }}>
-            <SectionCard
-              title="Beschreibung"
-              text={guild.description}
-              emptyHint="Noch keine Beschreibung."
-              editable={can("manage_description")}
-              onEdit={() => setDescEditorVisible(true)}
+      <Animated.View
+        style={{
+          flex: 1,
+          opacity: tabTransition,
+          transform: [
+            { translateX: tabTransition.interpolate({ inputRange: [0, 1], outputRange: [18 * tabDirection, 0] }) },
+          ],
+        }}
+      >
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tabContent} key={activeTab}>
+          {activeTab === "members" && (
+            <MembersTab
+              guild={guild}
+              can={can}
+              onAssignRole={(member) => setAssignRoleFor(member)}
+              onManageRoles={() => setRoleEditorFor(null)}
+              onEditRole={(role) => setRoleEditorFor(role)}
             />
-            <SectionCard
-              title="Regeln"
-              text={guild.rules}
-              emptyHint="Noch keine Regeln festgelegt."
-              editable={can("manage_rules")}
-              onEdit={() => setRulesEditorVisible(true)}
-            />
-          </View>
-        )}
+          )}
 
-        {activeTab === "events" && (
-          <EventsTab
-            guild={guild}
-            can={can}
-            onCreate={() => setEventEditorFor(null)}
-            onEdit={(event) => setEventEditorFor(event)}
-          />
-        )}
-      </ScrollView>
+          {activeTab === "rules" && (
+            <View style={{ gap: spacing.md }}>
+              <FadeInItem index={0}>
+                <SectionCard
+                  title="Beschreibung"
+                  text={guild.description}
+                  emptyHint="Noch keine Beschreibung."
+                  editable={can("manage_description")}
+                  onEdit={() => setDescEditorVisible(true)}
+                />
+              </FadeInItem>
+              <FadeInItem index={1}>
+                <SectionCard
+                  title="Regeln"
+                  text={guild.rules}
+                  emptyHint="Noch keine Regeln festgelegt."
+                  editable={can("manage_rules")}
+                  onEdit={() => setRulesEditorVisible(true)}
+                />
+              </FadeInItem>
+            </View>
+          )}
+
+          {activeTab === "events" && (
+            <EventsTab
+              guild={guild}
+              can={can}
+              onCreate={() => setEventEditorFor(null)}
+              onEdit={(event) => setEventEditorFor(event)}
+            />
+          )}
+        </ScrollView>
+      </Animated.View>
 
       <Pressable
         style={styles.chatButton}
@@ -257,43 +340,46 @@ function MembersTab({ guild, can, onAssignRole, onManageRoles, onEditRole }) {
   return (
     <View style={{ gap: spacing.lg }}>
       <View style={{ gap: spacing.sm }}>
-        {guild.members.map((member) => (
-          <Pressable
-            key={member.uuid}
-            style={styles.memberRow}
-            disabled={!can("assign_roles") || member.isOwner}
-            onPress={() => onAssignRole(member)}
-          >
-            <Text style={styles.memberName}>
-              {member.isOwner
-                ? "👑 "
-                : member.role?.tagPrefix
-                ? `[${member.role.tagPrefix}] `
-                : ""}
-              {member.username}
-            </Text>
-            <Text style={styles.memberRole}>{member.isOwner ? "Inhaber" : member.role?.name ?? ""}</Text>
-          </Pressable>
+        {guild.members.map((member, index) => (
+          <FadeInItem key={member.uuid} index={index}>
+            <Pressable
+              style={styles.memberRow}
+              disabled={!can("assign_roles") || member.isOwner}
+              onPress={() => onAssignRole(member)}
+            >
+              <Text style={styles.memberName}>
+                {member.isOwner
+                  ? "👑 "
+                  : member.role?.tagPrefix
+                  ? `[${member.role.tagPrefix}] `
+                  : ""}
+                {member.username}
+              </Text>
+              <Text style={styles.memberRole}>{member.isOwner ? "Inhaber" : member.role?.name ?? ""}</Text>
+            </Pressable>
+          </FadeInItem>
         ))}
       </View>
 
       {can("manage_roles") && (
         <View style={{ gap: spacing.sm }}>
           <View style={styles.rolesHeaderRow}>
-            <Text style={styles.subheading}>Rollen verwalten</Text>
+            <Text style={styles.subheading}>Gilden-Team verwalten</Text>
             <Pressable onPress={onManageRoles}>
               <Text style={styles.addLink}>+ Neue Rolle</Text>
             </Pressable>
           </View>
-          {guild.roles.map((role) => (
-            <Pressable key={role.id} style={styles.roleRow} onPress={() => onEditRole(role)}>
-              <Text style={styles.roleName}>
-                {role.tagPrefix ? `[${role.tagPrefix}] ` : ""}
-                {role.name}
-                {role.isDefault ? " (Standard)" : ""}
-              </Text>
-              <Text style={styles.rolePerms}>{role.permissions.length} Rechte</Text>
-            </Pressable>
+          {guild.roles.map((role, index) => (
+            <FadeInItem key={role.id} index={index}>
+              <Pressable style={styles.roleRow} onPress={() => onEditRole(role)}>
+                <Text style={styles.roleName}>
+                  {role.tagPrefix ? `[${role.tagPrefix}] ` : ""}
+                  {role.name}
+                  {role.isDefault ? " (Standard)" : ""}
+                </Text>
+                <Text style={styles.rolePerms}>{role.permissions.length} Rechte</Text>
+              </Pressable>
+            </FadeInItem>
           ))}
         </View>
       )}
@@ -328,31 +414,51 @@ function EventsTab({ guild, can, onCreate, onEdit }) {
 
       {guild.events.length === 0 && <Text style={styles.placeholder}>Noch keine Events geplant.</Text>}
 
-      {guild.events.map((event) => (
-        <Pressable
-          key={event.id}
-          style={styles.card}
-          disabled={!can("manage_events")}
-          onPress={() => onEdit(event)}
-        >
-          <Text style={styles.subheading}>{event.title}</Text>
-          {event.startsAt && <Text style={styles.eventDate}>{formatEventDate(event.startsAt)}</Text>}
-          {event.description && <Text style={styles.cardText}>{event.description}</Text>}
-        </Pressable>
+      {guild.events.map((event, index) => (
+        <FadeInItem key={event.id} index={index}>
+          <Pressable
+            style={styles.card}
+            disabled={!can("manage_events")}
+            onPress={() => onEdit(event)}
+          >
+            <Text style={styles.subheading}>{event.title}</Text>
+            {event.startsAt && <Text style={styles.eventDate}>{formatEventDate(event.startsAt)}</Text>}
+            {event.description && <Text style={styles.cardText}>{event.description}</Text>}
+          </Pressable>
+        </FadeInItem>
       ))}
     </View>
   );
 }
 
+const SCREEN_HEIGHT = Dimensions.get("window").height;
+
+/**
+ * Editier-Dialoge als von unten einfahrendes Bottom-Sheet (statt zentriertem
+ * Fenster) - modernere, "app-typische" Geste, Antippen des abgedunkelten
+ * Hintergrunds schließt den Dialog wie erwartet.
+ */
 function ModalShell({ title, children, onCancel }) {
+  const backdropFade = useRef(new Animated.Value(0)).current;
+  const sheetSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(backdropFade, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(sheetSlide, { toValue: 0, friction: 9, tension: 65, useNativeDriver: true }),
+    ]).start();
+  }, [backdropFade, sheetSlide]);
+
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalPanel}>
+    <Modal visible transparent animationType="none" onRequestClose={onCancel}>
+      <Animated.View style={[styles.modalBackdrop, { opacity: backdropFade }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+        <Animated.View style={[styles.modalPanel, { transform: [{ translateY: sheetSlide }] }]}>
+          <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>{title}</Text>
           {children}
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -416,7 +522,7 @@ function RoleEditorModal({ role, onCancel, onSave, onDelete }) {
         style={styles.input}
         value={name}
         onChangeText={setName}
-        placeholder="Name (z.B. Offizier)"
+        placeholder="Name (z.B. Gilden-Team)"
         placeholderTextColor={colors.textMuted}
         maxLength={30}
       />
@@ -424,7 +530,7 @@ function RoleEditorModal({ role, onCancel, onSave, onDelete }) {
         style={styles.input}
         value={tagPrefix}
         onChangeText={setTagPrefix}
-        placeholder="Tag-Präfix (z.B. Off)"
+        placeholder="Tag-Präfix (z.B. Team)"
         placeholderTextColor={colors.textMuted}
         maxLength={10}
       />
@@ -550,14 +656,31 @@ function EventEditorModal({ event, onCancel, onSave, onDelete }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: { padding: spacing.lg, paddingBottom: spacing.sm },
+  headerAccent: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.gold,
+    marginBottom: spacing.sm,
+  },
   title: { fontSize: 22, fontWeight: "800", color: colors.gold, marginTop: 60, marginHorizontal: spacing.lg },
   placeholder: { color: colors.textMuted, marginHorizontal: spacing.lg, fontSize: 13 },
-  guildName: { fontSize: 20, fontWeight: "800", color: colors.gold },
+  guildName: { fontSize: 22, fontWeight: "800", color: colors.gold },
   memberCount: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
   tabRail: { flexDirection: "row", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
-  tabBtn: { paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.goldSoft },
-  tabBtnActive: { backgroundColor: colors.gold },
+  tabBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+  },
+  tabBtnActive: { backgroundColor: colors.gold, borderColor: colors.gold },
+  tabBtnIcon: { fontSize: 13 },
   tabBtnText: { fontSize: 12, fontWeight: "700", color: colors.textMuted },
   tabBtnTextActive: { color: colors.bg },
 
@@ -616,15 +739,25 @@ const styles = StyleSheet.create({
   },
   chatButtonText: { color: colors.bg, fontWeight: "800" },
 
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", padding: spacing.lg },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modalPanel: {
     backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.goldSoft,
+    borderBottomWidth: 0,
     padding: spacing.lg,
     gap: spacing.sm,
     maxHeight: "85%",
+  },
+  modalHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.goldSoft,
+    marginBottom: spacing.xs,
   },
   modalTitle: { fontSize: 15, fontWeight: "800", color: colors.gold, marginBottom: spacing.xs },
   input: {
