@@ -21,7 +21,6 @@ import { checkForAppUpdate } from "../api/updateCheck";
 import { getMyProfiles } from "../api/profiles";
 import {
   getStoredToken,
-  getActiveProfileUuid,
   clearActiveProfileUuid,
   logout,
   tryRefreshLogin,
@@ -94,7 +93,10 @@ function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, is
  * 2. Login-Check (Minecraft-Account nötig).
  * 3. Profil-Auswahl (MMOProfiles: mehrere Charakter-UUIDs pro Account,
  *    siehe Task #51/#82) - eigener Screen im Start-Flow, NICHT in den
- *    Einstellungen versteckt.
+ *    Einstellungen versteckt. Erscheint bewusst bei JEDEM App-Start (nicht
+ *    nur beim allerersten Login) - ein zuletzt gespeichertes Profil wird
+ *    hier absichtlich nicht automatisch übernommen, siehe Nutzerwunsch
+ *    "Spielstände-Auswahl statt Startseite".
  * 4. Haupt-Tabs, "Profil wechseln"/"Abmelden" leben im Einstellungen-Tab
  *    (führt zurück zu Schritt 3 bzw. 2) - vorher eine überlappende
  *    AccountBar oben links, die den neuen HomeHeader verdeckt hat.
@@ -138,17 +140,15 @@ export default function AppNavigator() {
       .then(setPendingUpdate)
       .catch(() => setPendingUpdate(null));
 
-    // Token + Profil-Auswahl bewusst NACHEINANDER (nicht parallel) laden:
-    // Beide hängen jetzt vom aktiven Konto ab, und `tryRefreshLogin()` kann
-    // dieses bei einem ungültigen Refresh-Token entfernen und zu einem
-    // anderen wechseln (siehe auth.js) - ein paralleler Abruf von
-    // `getActiveProfileUuid()` könnte sonst noch den Stand VOR diesem
-    // Wechsel lesen (Race Condition).
+    // Ein gespeichertes aktives Profil wird beim Start bewusst NICHT
+    // übernommen (siehe JSDoc oben) - die Profil-Auswahl soll bei jedem
+    // App-Start erscheinen, `activeProfileUuid` bleibt also so lange auf
+    // `null`, bis der Nutzer in ProfileSelectScreen erneut wählt.
     (async () => {
       const stored = await getStoredToken();
       if (stored) {
         setToken(stored);
-        setActiveProfileUuid(await getActiveProfileUuid());
+        setActiveProfileUuid(null);
         return;
       }
       // Kein (mehr gültiger) gespeicherter Minecraft-Token - still über den
@@ -156,7 +156,7 @@ export default function AppNavigator() {
       // Login-Screen gezeigt wird (Auto-Login, analog zum Desktop-Launcher).
       const refreshed = await tryRefreshLogin();
       setToken(refreshed?.token ?? null);
-      setActiveProfileUuid(refreshed?.activeProfileUuid ?? null);
+      setActiveProfileUuid(null);
     })();
 
     const timer = setTimeout(() => setSplashMinDurationDone(true), SPLASH_MIN_DURATION_MS);

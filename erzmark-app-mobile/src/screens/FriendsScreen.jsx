@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { View, Text, FlatList, ActivityIndicator, StyleSheet } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, Text, FlatList, ActivityIndicator, StyleSheet, Animated, Easing } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getFriends } from "../api/friends";
 import { getAccountUuid, getActiveProfileUuid } from "../api/auth";
@@ -10,6 +10,39 @@ import { colors, radius, spacing } from "../theme";
 // wie in FriendsPreview.jsx - die aktive Profil-UUID nutzen statt der
 // festen Account-UUID.
 const AUTO_REFRESH_MS = 60 * 1000;
+
+/** Eine Freundeszeile, fadet/rutscht gestaffelt (per `index`) beim ersten Laden ein. */
+function FriendRow({ friend, index }) {
+  const entrance = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: 320,
+      delay: Math.min(index, 12) * 40,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: entrance,
+        transform: [{ translateX: entrance.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }],
+      }}
+    >
+      <View style={styles.row}>
+        <View style={[styles.dot, friend.online ? styles.dotOnline : styles.dotOffline]} />
+        <Text style={styles.name} numberOfLines={1}>{friend.name}</Text>
+        <Text style={styles.status}>
+          {friend.online ? "Online" : formatLastSeen(friend.lastSeen)}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+}
 
 function formatLastSeen(unixSeconds) {
   if (!unixSeconds) return "";
@@ -81,15 +114,7 @@ export default function FriendsScreen() {
         data={friends ?? []}
         keyExtractor={(item) => item.uuid}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <View style={[styles.dot, item.online ? styles.dotOnline : styles.dotOffline]} />
-            <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-            <Text style={styles.status}>
-              {item.online ? "Online" : formatLastSeen(item.lastSeen)}
-            </Text>
-          </View>
-        )}
+        renderItem={({ item, index }) => <FriendRow friend={item} index={index} />}
       />
     </SafeAreaView>
   );
