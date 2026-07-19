@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Modal, TextInput, ScrollView, ActivityIndicator, Animated, Easing, Dimensions } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, Modal, TextInput, ScrollView, FlatList, ActivityIndicator, Animated, Easing, Dimensions, Keyboard, BackHandler, Platform, KeyboardAvoidingView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   getMyGuild,
@@ -12,6 +12,8 @@ import {
   createGuildEvent,
   updateGuildEvent,
   deleteGuildEvent,
+  getGuildChatHistory,
+  sendGuildChatMessage,
 } from "../api/guilds";
 import { getStoredToken } from "../api/auth";
 import { colors, radius, spacing } from "../theme";
@@ -25,10 +27,16 @@ const PERMISSION_LABELS = {
 };
 const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS);
 
+// "Einstellungen" ist nur sichtbar, wenn mindestens eines dieser Rechte
+// vorliegt (der Owner hat laut Backend ohnehin implizit alle, siehe
+// GuildController::requireGuildWithPermission()).
 const TABS = [
+  { id: "overview", label: "Übersicht", icon: "🏠" },
   { id: "members", label: "Mitglieder", icon: "👥" },
   { id: "rules", label: "Regeln", icon: "📜" },
   { id: "events", label: "Events", icon: "📅" },
+  { id: "chat", label: "Chat", icon: "💬" },
+  { id: "settings", label: "Einstellungen", icon: "⚙️", requiresAnyPermission: true },
 ];
 
 function formatEventDate(iso) {
@@ -83,10 +91,10 @@ function FadeInItem({ index = 0, children, style }) {
  * statt zentrierter Fenster - der Gildeninhaber (und wer die passende Rolle/
  * Berechtigung hat) kann so jeden Bereich direkt an Ort und Stelle bearbeiten.
  */
-export default function GuildListScreen({ navigation }) {
+export default function GuildListScreen() {
   const [token, setToken] = useState(null);
   const [guild, setGuild] = useState(undefined); // undefined = lädt, null = keine Gilde
-  const [activeTab, setActiveTab] = useState("members");
+  const [activeTab, setActiveTab] = useState("overview");
   const [tabDirection, setTabDirection] = useState(1);
 
   const [descEditorVisible, setDescEditorVisible] = useState(false);
@@ -157,6 +165,8 @@ export default function GuildListScreen({ navigation }) {
 
   const perms = guild.myPermissions ?? [];
   const can = (permission) => perms.includes(permission);
+  const hasSettingsAccess = ALL_PERMISSIONS.some(can);
+  const visibleTabs = TABS.filter((tab) => !tab.requiresAnyPermission || hasSettingsAccess);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -171,8 +181,8 @@ export default function GuildListScreen({ navigation }) {
         <Text style={styles.memberCount}>{guild.members.length} Mitglieder</Text>
       </Animated.View>
 
-      <View style={styles.tabRail}>
-        {TABS.map((tab) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabRailScroll} contentContainerStyle={styles.tabRail}>
+        {visibleTabs.map((tab) => (
           <Pressable
             key={tab.id}
             style={[styles.tabBtn, activeTab === tab.id && styles.tabBtnActive]}
@@ -182,7 +192,7 @@ export default function GuildListScreen({ navigation }) {
             <Text style={[styles.tabBtnText, activeTab === tab.id && styles.tabBtnTextActive]}>{tab.label}</Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       <Animated.View
         style={{
@@ -193,57 +203,61 @@ export default function GuildListScreen({ navigation }) {
           ],
         }}
       >
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tabContent} key={activeTab}>
-          {activeTab === "members" && (
-            <MembersTab
-              guild={guild}
-              can={can}
-              onAssignRole={(member) => setAssignRoleFor(member)}
-              onManageRoles={() => setRoleEditorFor(null)}
-              onEditRole={(role) => setRoleEditorFor(role)}
-            />
-          )}
+        {activeTab === "chat" ? (
+          <GuildChatPanel token={token} />
+        ) : (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tabContent} key={activeTab}>
+            {activeTab === "overview" && <OverviewTab guild={guild} />}
 
-          {activeTab === "rules" && (
-            <View style={{ gap: spacing.md }}>
-              <FadeInItem index={0}>
-                <SectionCard
-                  title="Beschreibung"
-                  text={guild.description}
-                  emptyHint="Noch keine Beschreibung."
-                  editable={can("manage_description")}
-                  onEdit={() => setDescEditorVisible(true)}
-                />
-              </FadeInItem>
-              <FadeInItem index={1}>
-                <SectionCard
-                  title="Regeln"
-                  text={guild.rules}
-                  emptyHint="Noch keine Regeln festgelegt."
-                  editable={can("manage_rules")}
-                  onEdit={() => setRulesEditorVisible(true)}
-                />
-              </FadeInItem>
-            </View>
-          )}
+            {activeTab === "members" && (
+              <MembersTab guild={guild} can={can} onAssignRole={(member) => setAssignRoleFor(member)} />
+            )}
 
-          {activeTab === "events" && (
-            <EventsTab
-              guild={guild}
-              can={can}
-              onCreate={() => setEventEditorFor(null)}
-              onEdit={(event) => setEventEditorFor(event)}
-            />
-          )}
-        </ScrollView>
+            {activeTab === "rules" && (
+              <View style={{ gap: spacing.md }}>
+                <FadeInItem index={0}>
+                  <SectionCard
+                    title="Beschreibung"
+                    text={guild.description}
+                    emptyHint="Noch keine Beschreibung."
+                    editable={can("manage_description")}
+                    onEdit={() => setDescEditorVisible(true)}
+                  />
+                </FadeInItem>
+                <FadeInItem index={1}>
+                  <SectionCard
+                    title="Regeln"
+                    text={guild.rules}
+                    emptyHint="Noch keine Regeln festgelegt."
+                    editable={can("manage_rules")}
+                    onEdit={() => setRulesEditorVisible(true)}
+                  />
+                </FadeInItem>
+              </View>
+            )}
+
+            {activeTab === "events" && (
+              <EventsTab
+                guild={guild}
+                can={can}
+                onCreate={() => setEventEditorFor(null)}
+                onEdit={(event) => setEventEditorFor(event)}
+              />
+            )}
+
+            {activeTab === "settings" && (
+              <SettingsTab
+                guild={guild}
+                can={can}
+                onEditDescription={() => setDescEditorVisible(true)}
+                onEditRules={() => setRulesEditorVisible(true)}
+                onManageRoles={() => setRoleEditorFor(null)}
+                onEditRole={(role) => setRoleEditorFor(role)}
+              />
+            )}
+          </ScrollView>
+        )}
       </Animated.View>
-
-      <Pressable
-        style={styles.chatButton}
-        onPress={() => navigation.navigate("GuildChat", { guildName: guild.name })}
-      >
-        <Text style={styles.chatButtonText}>💬 Zum Gilden-Chat</Text>
-      </Pressable>
 
       {descEditorVisible && (
         <TextEditModal
@@ -336,29 +350,123 @@ export default function GuildListScreen({ navigation }) {
   );
 }
 
-function MembersTab({ guild, can, onAssignRole, onManageRoles, onEditRole }) {
+/**
+ * `member.username` kommt 1:1 vom Backend (`GuildController::mine()` liest
+ * die MMOCore-Gilden-YAML direkt) - aktuell noch der rohe Minecraft-
+ * Accountname, NICHT der aktive MMOProfiles-Charaktername. Nutzerwunsch
+ * (19.07.2026): stattdessen den Profilnamen anzeigen - das ist eine
+ * serverseitige Änderung (GuildController.php auf dem Hetzner-Server muss
+ * den Account-UUID -> aktiver-Profilname-Lookup ergänzen), noch nicht
+ * umgesetzt. Siehe HANDOFF.md TODO-Liste.
+ */
+function MembersTab({ guild, can, onAssignRole }) {
+  return (
+    <View style={{ gap: spacing.sm }}>
+      {guild.members.map((member, index) => (
+        <FadeInItem key={member.uuid} index={index}>
+          <Pressable
+            style={styles.memberRow}
+            disabled={!can("assign_roles") || member.isOwner}
+            onPress={() => onAssignRole(member)}
+          >
+            <Text style={styles.memberName}>
+              {member.isOwner
+                ? "👑 "
+                : member.role?.tagPrefix
+                ? `[${member.role.tagPrefix}] `
+                : ""}
+              {member.username}
+            </Text>
+            <Text style={styles.memberRole}>{member.isOwner ? "Inhaber" : member.role?.name ?? ""}</Text>
+          </Pressable>
+        </FadeInItem>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * "Übersicht"-Tab, angelehnt an die Startseite einer Facebook-Gruppe:
+ * Titelbild/Logo (sobald das Backend sie liefert, siehe HANDOFF.md TODO
+ * "Titelbild/Logo für Gilden") + Beschreibung auf einen Blick. Solange
+ * `guild.bannerUrl`/`guild.logoUrl` noch nicht existieren, zeigt ein
+ * dezenter Platzhalter trotzdem Tag/Name - kein kaputtes Bild, kein leerer
+ * Bereich.
+ */
+function OverviewTab({ guild }) {
+  return (
+    <View style={{ gap: spacing.md }}>
+      <View style={styles.banner}>
+        {guild.bannerUrl && <Image source={{ uri: guild.bannerUrl }} style={StyleSheet.absoluteFill} />}
+        <View style={styles.bannerOverlay}>
+          <View style={styles.logoRing}>
+            {guild.logoUrl ? (
+              <Image source={{ uri: guild.logoUrl }} style={styles.logoImage} />
+            ) : (
+              <Text style={styles.logoFallback}>{guild.tag?.slice(0, 3)}</Text>
+            )}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.statsRow}>
+        <View style={styles.statPill}>
+          <Text style={styles.statPillValue}>{guild.members.length}</Text>
+          <Text style={styles.statPillLabel}>Mitglieder</Text>
+        </View>
+        <View style={styles.statPill}>
+          <Text style={styles.statPillValue}>{guild.roles.length}</Text>
+          <Text style={styles.statPillLabel}>Rollen</Text>
+        </View>
+        <View style={styles.statPill}>
+          <Text style={styles.statPillValue}>{guild.events.length}</Text>
+          <Text style={styles.statPillLabel}>Events</Text>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.subheading}>Über die Gilde</Text>
+        <Text style={guild.description ? styles.cardText : styles.placeholder}>
+          {guild.description || "Noch keine Beschreibung - unter Regeln oder Einstellungen bearbeitbar."}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Owner/Admin-Bereich, gebündelt statt über den ganzen Screen verteilt -
+ * einziger Ort für Beschreibung/Regeln, Titelbild/Logo und Gilden-Team.
+ * Nur sichtbar, wenn mindestens ein `manage_*`-Recht vorliegt (siehe
+ * `hasSettingsAccess` in GuildListScreen).
+ */
+function SettingsTab({ guild, can, onEditDescription, onEditRules, onManageRoles, onEditRole }) {
   return (
     <View style={{ gap: spacing.lg }}>
       <View style={{ gap: spacing.sm }}>
-        {guild.members.map((member, index) => (
-          <FadeInItem key={member.uuid} index={index}>
-            <Pressable
-              style={styles.memberRow}
-              disabled={!can("assign_roles") || member.isOwner}
-              onPress={() => onAssignRole(member)}
-            >
-              <Text style={styles.memberName}>
-                {member.isOwner
-                  ? "👑 "
-                  : member.role?.tagPrefix
-                  ? `[${member.role.tagPrefix}] `
-                  : ""}
-                {member.username}
-              </Text>
-              <Text style={styles.memberRole}>{member.isOwner ? "Inhaber" : member.role?.name ?? ""}</Text>
-            </Pressable>
-          </FadeInItem>
-        ))}
+        <Text style={styles.subheading}>Erscheinungsbild</Text>
+        <View style={styles.comingSoonCard}>
+          <Text style={styles.cardText}>Titelbild & Gilden-Logo hochladen</Text>
+          <Text style={styles.placeholder}>Bald verfügbar - Upload folgt in einer kommenden Version.</Text>
+        </View>
+      </View>
+
+      <View style={{ gap: spacing.sm }}>
+        <Text style={styles.subheading}>Inhalte</Text>
+        <SectionCard
+          title="Beschreibung"
+          text={guild.description}
+          emptyHint="Noch keine Beschreibung."
+          editable={can("manage_description")}
+          onEdit={onEditDescription}
+        />
+        <SectionCard
+          title="Regeln"
+          text={guild.rules}
+          emptyHint="Noch keine Regeln festgelegt."
+          editable={can("manage_rules")}
+          onEdit={onEditRules}
+        />
       </View>
 
       {can("manage_roles") && (
@@ -384,6 +492,73 @@ function MembersTab({ guild, can, onAssignRole, onManageRoles, onEditRole }) {
         </View>
       )}
     </View>
+  );
+}
+
+/**
+ * Chat als eigener Tab statt separatem Button/Screen (19.07.2026) - eigene
+ * FlatList statt in die gemeinsame ScrollView der anderen Tabs eingebettet
+ * (verschachtelte scrollbare Listen sind in RN problematisch), volle Höhe +
+ * KeyboardAvoidingView analog zu ModalShell, damit das Eingabefeld nicht
+ * hinter der Tastatur verschwindet.
+ */
+function GuildChatPanel({ token }) {
+  const [messages, setMessages] = useState(undefined);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    getGuildChatHistory(token).then(setMessages).catch(() => setMessages([]));
+  }, [token]);
+
+  async function handleSend() {
+    if (!draft.trim() || sending) return;
+    setSending(true);
+    const text = draft.trim();
+    setDraft("");
+    try {
+      const sent = await sendGuildChatMessage(token, text);
+      setMessages((prev) => [...(prev ?? []), sent]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      {messages === undefined ? (
+        <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.xl }} />
+      ) : (
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.chatList}
+          ListEmptyComponent={<Text style={styles.placeholder}>Noch keine Nachrichten - schreib die erste!</Text>}
+          renderItem={({ item, index }) => (
+            <FadeInItem index={index} style={styles.chatMessageRow}>
+              <Text style={styles.chatAuthor}>{item.author}</Text>
+              <Text style={styles.chatText}>{item.message}</Text>
+            </FadeInItem>
+          )}
+        />
+      )}
+      <View style={styles.chatInputRow}>
+        <TextInput
+          style={styles.chatInput}
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Nachricht schreiben…"
+          placeholderTextColor={colors.textMuted}
+        />
+        <Pressable style={styles.chatSendBtn} onPress={handleSend} disabled={sending}>
+          <Text style={styles.chatSendBtnText}>{sending ? "…" : "Senden"}</Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -437,27 +612,66 @@ const SCREEN_HEIGHT = Dimensions.get("window").height;
  * Editier-Dialoge als von unten einfahrendes Bottom-Sheet (statt zentriertem
  * Fenster) - modernere, "app-typische" Geste, Antippen des abgedunkelten
  * Hintergrunds schließt den Dialog wie erwartet.
+ *
+ * Bugfix (19.07.2026): Auf Android hat die Hardware-Zurück-Taste bisher
+ * IMMER sofort den ganzen Dialog geschlossen (`onRequestClose`) - auch
+ * während die Tastatur offen war, z.B. beim Tippen der Regeln. Ein Nutzer,
+ * der die Tastatur mit Zurück schließen wollte (normales Android-Verhalten
+ * auf einem gewöhnlichen Screen), hat damit stattdessen ungespeichert den
+ * ganzen Dialog verloren - der "Speichern"-Button war praktisch
+ * unerreichbar. Fix: Solange die Tastatur sichtbar ist, schließt Zurück nur
+ * die Tastatur (Eingabe bleibt erhalten); erst ein zweiter Zurück-Druck
+ * (ohne Tastatur) schließt den Dialog. Zusätzlich sorgt KeyboardAvoidingView
+ * dafür, dass der "Speichern"-Button gar nicht erst hinter der Tastatur
+ * verschwindet (Modals bekommen Androids adjustResize sonst nicht automatisch).
  */
 function ModalShell({ title, children, onCancel }) {
   const backdropFade = useRef(new Animated.Value(0)).current;
   const sheetSlide = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const keyboardVisible = useRef(false);
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(backdropFade, { toValue: 1, duration: 220, useNativeDriver: true }),
       Animated.spring(sheetSlide, { toValue: 0, friction: 9, tension: 65, useNativeDriver: true }),
     ]).start();
+
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => { keyboardVisible.current = true; });
+    const hideSub = Keyboard.addListener(hideEvent, () => { keyboardVisible.current = false; });
+
+    const backSub = Platform.OS === "android"
+      ? BackHandler.addEventListener("hardwareBackPress", () => {
+          if (keyboardVisible.current) {
+            Keyboard.dismiss();
+            return true; // Zurück-Druck "verbraucht" - Dialog bleibt offen
+          }
+          return false; // keine Tastatur offen -> normales Verhalten (Dialog schließt)
+        })
+      : null;
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+      backSub?.remove();
+    };
   }, [backdropFade, sheetSlide]);
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onCancel}>
       <Animated.View style={[styles.modalBackdrop, { opacity: backdropFade }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-        <Animated.View style={[styles.modalPanel, { transform: [{ translateY: sheetSlide }] }]}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>{title}</Text>
-          {children}
-        </Animated.View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalKeyboardWrap}
+        >
+          <Animated.View style={[styles.modalPanel, { transform: [{ translateY: sheetSlide }] }]}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>{title}</Text>
+            {children}
+          </Animated.View>
+        </KeyboardAvoidingView>
       </Animated.View>
     </Modal>
   );
@@ -668,7 +882,8 @@ const styles = StyleSheet.create({
   guildName: { fontSize: 22, fontWeight: "800", color: colors.gold },
   memberCount: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 
-  tabRail: { flexDirection: "row", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+  tabRailScroll: { flexGrow: 0, marginBottom: spacing.sm },
+  tabRail: { flexDirection: "row", paddingHorizontal: spacing.lg, gap: spacing.sm },
   tabBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -730,16 +945,93 @@ const styles = StyleSheet.create({
   eventDate: { fontSize: 11, color: colors.gold, fontWeight: "700" },
   createEventBtn: { alignSelf: "flex-start" },
 
-  chatButton: {
-    margin: spacing.lg,
-    backgroundColor: colors.gold,
+  banner: {
+    height: 120,
     borderRadius: radius.md,
-    paddingVertical: 14,
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    overflow: "hidden",
     alignItems: "center",
+    justifyContent: "center",
   },
-  chatButtonText: { color: colors.bg, fontWeight: "800" },
+  bannerOverlay: { alignItems: "center", justifyContent: "center" },
+  logoRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bgElevated,
+    borderWidth: 2,
+    borderColor: colors.gold,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: "hidden",
+  },
+  logoImage: { width: 64, height: 64, resizeMode: "cover" },
+  logoFallback: { fontSize: 18, fontWeight: "800", color: colors.gold, letterSpacing: 1 },
+
+  statsRow: { flexDirection: "row", gap: spacing.sm },
+  statPill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+  },
+  statPillValue: { fontSize: 16, fontWeight: "800", color: colors.text },
+  statPillLabel: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+
+  comingSoonCard: {
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    borderStyle: "dashed",
+    gap: 4,
+  },
+
+  chatList: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: spacing.xs, flexGrow: 1 },
+  chatMessageRow: {
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+  },
+  chatAuthor: { fontSize: 11, fontWeight: "800", color: colors.gold },
+  chatText: { fontSize: 14, color: colors.text, marginTop: 2 },
+  chatInputRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.goldSoft,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: colors.panel,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    color: colors.text,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    fontSize: 13,
+  },
+  chatSendBtn: { backgroundColor: colors.gold, borderRadius: radius.pill, paddingHorizontal: spacing.md, justifyContent: "center" },
+  chatSendBtnText: { color: colors.bg, fontWeight: "800", fontSize: 12 },
 
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  modalKeyboardWrap: { width: "100%" },
   modalPanel: {
     backgroundColor: colors.bgElevated,
     borderTopLeftRadius: radius.lg,

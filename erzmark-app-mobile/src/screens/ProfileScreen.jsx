@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Image, StyleSheet, Animated, Easing, ActivityIn
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getMyProfiles } from "../api/profiles";
 import { getStoredToken, getActiveProfileUuid, getAccountUuid } from "../api/auth";
+import CoinPouch from "../components/CoinPouch";
 import { colors, radius, spacing } from "../theme";
 
 const AUTO_REFRESH_MS = 60 * 1000;
@@ -31,11 +32,6 @@ function formatPlayTime(totalSeconds) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-}
-
-function formatCoins(amount) {
-  if (amount == null) return "0";
-  return Math.round(amount).toLocaleString("de-DE");
 }
 
 // Gleiche Rang-Textbadges wie ProfileCard.jsx/ProfileSelectScreen.jsx.
@@ -198,7 +194,10 @@ export default function ProfileScreen() {
         <View style={styles.statsGrid}>
           <StatTile icon="📜" value={activeProfile.questsCompleted ?? 0} label="Quests" index={0} />
           <StatTile icon="⏱" value={formatPlayTime(activeProfile.playTime)} label="Spielzeit" index={1} />
-          <StatTile icon="🪙" value={formatCoins(activeProfile.coins)} label="Münzen" index={2} />
+        </View>
+
+        <View style={styles.pouchCard}>
+          <CoinPouch coins={activeProfile.coins} />
         </View>
 
         {lastPlayed && (
@@ -240,6 +239,15 @@ const styles = StyleSheet.create({
   rankBadge: { borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 2 },
   rankBadgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase", color: "#fff" },
   subline: { fontSize: 14, color: colors.textMuted },
+  pouchCard: {
+    backgroundColor: colors.panel,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: "center",
+  },
   statsGrid: { flexDirection: "row", gap: spacing.md },
   statTile: {
     flex: 1,

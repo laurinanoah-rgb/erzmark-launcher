@@ -10,7 +10,6 @@ import UpdateRequiredScreen from "../screens/UpdateRequiredScreen";
 import ProfileSelectScreen from "../screens/ProfileSelectScreen";
 import HomeScreen from "../screens/HomeScreen";
 import GuildListScreen from "../screens/GuildListScreen";
-import GuildChatScreen from "../screens/GuildChatScreen";
 import FriendsScreen from "../screens/FriendsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
@@ -34,19 +33,7 @@ import {
 const SPLASH_MIN_DURATION_MS = 1500;
 
 const RootStack = createNativeStackNavigator();
-const GuildStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
-
-function GuildStackScreen() {
-  // Verschachtelter Stack innerhalb des "Gilden"-Tabs, damit GuildChatScreen
-  // von GuildListScreen aus per navigation.navigate erreichbar ist.
-  return (
-    <GuildStack.Navigator screenOptions={{ headerShown: false }}>
-      <GuildStack.Screen name="GuildOverview" component={GuildListScreen} />
-      <GuildStack.Screen name="GuildChat" component={GuildChatScreen} />
-    </GuildStack.Navigator>
-  );
-}
 
 const TAB_ICONS = {
   Home: "🏠",
@@ -69,7 +56,7 @@ function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, is
       })}
     >
       <Tabs.Screen name="Home">{() => <HomeScreen onLogout={onLogout} />}</Tabs.Screen>
-      <Tabs.Screen name="Gilden" component={GuildStackScreen} />
+      <Tabs.Screen name="Gilden" component={GuildListScreen} />
       <Tabs.Screen name="Freunde" component={FriendsScreen} />
       <Tabs.Screen name="Profil" component={ProfileScreen} />
       {isStaff && <Tabs.Screen name="Team" component={TeamScreen} />}
