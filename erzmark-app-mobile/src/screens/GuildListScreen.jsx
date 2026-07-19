@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Image, Pressable, StyleSheet, Modal, TextInput, ScrollView, FlatList, ActivityIndicator, Animated, Easing, Dimensions, Keyboard, BackHandler, Platform, KeyboardAvoidingView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 import {
   getMyGuild,
   updateGuildDescription,
@@ -14,8 +15,19 @@ import {
   deleteGuildEvent,
   getGuildChatHistory,
   sendGuildChatMessage,
+  uploadGuildBanner,
+  removeGuildBanner,
+  uploadGuildLogo,
+  removeGuildLogo,
+  getGuildFeed,
+  createGuildPost,
+  deleteGuildPost,
+  toggleGuildPostPin,
+  toggleGuildPostReaction,
+  createGuildPostComment,
+  deleteGuildPostComment,
 } from "../api/guilds";
-import { getStoredToken } from "../api/auth";
+import { getStoredToken, getAccountUuid } from "../api/auth";
 import { colors, radius, spacing } from "../theme";
 
 const PERMISSION_LABELS = {
@@ -24,6 +36,8 @@ const PERMISSION_LABELS = {
   manage_roles: "Rollen verwalten",
   assign_roles: "Rollen zuweisen",
   manage_events: "Events verwalten",
+  manage_posts: "Pinnwand moderieren",
+  manage_appearance: "Erscheinungsbild (Titelbild/Logo)",
 };
 const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS);
 
@@ -32,6 +46,7 @@ const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS);
 // GuildController::requireGuildWithPermission()).
 const TABS = [
   { id: "overview", label: "Übersicht", icon: "🏠" },
+  { id: "posts", label: "Pinnwand", icon: "📌" },
   { id: "members", label: "Mitglieder", icon: "👥" },
   { id: "rules", label: "Regeln", icon: "📜" },
   { id: "events", label: "Events", icon: "📅" },
@@ -93,6 +108,7 @@ function FadeInItem({ index = 0, children, style }) {
  */
 export default function GuildListScreen() {
   const [token, setToken] = useState(null);
+  const [myUuid, setMyUuid] = useState(null);
   const [guild, setGuild] = useState(undefined); // undefined = lädt, null = keine Gilde
   const [activeTab, setActiveTab] = useState("overview");
   const [tabDirection, setTabDirection] = useState(1);
@@ -119,6 +135,7 @@ export default function GuildListScreen() {
 
   useEffect(() => {
     reload();
+    getAccountUuid().then(setMyUuid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -205,6 +222,8 @@ export default function GuildListScreen() {
       >
         {activeTab === "chat" ? (
           <GuildChatPanel token={token} />
+        ) : activeTab === "posts" ? (
+          <GuildPostsTab token={token} myUuid={myUuid} can={can} />
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tabContent} key={activeTab}>
             {activeTab === "overview" && <OverviewTab guild={guild} />}
@@ -248,7 +267,9 @@ export default function GuildListScreen() {
             {activeTab === "settings" && (
               <SettingsTab
                 guild={guild}
+                token={token}
                 can={can}
+                onGuildUpdated={setGuild}
                 onEditDescription={() => setDescEditorVisible(true)}
                 onEditRules={() => setRulesEditorVisible(true)}
                 onManageRoles={() => setRoleEditorFor(null)}
@@ -440,15 +461,106 @@ function OverviewTab({ guild }) {
  * Nur sichtbar, wenn mindestens ein `manage_*`-Recht vorliegt (siehe
  * `hasSettingsAccess` in GuildListScreen).
  */
-function SettingsTab({ guild, can, onEditDescription, onEditRules, onManageRoles, onEditRole }) {
+/** Eine Zeile in "Erscheinungsbild": Vorschau + Hochladen/Ändern/Entfernen. */
+function AppearanceUploadRow({ label, imageUrl, canManage, uploading, onPick, onRemove }) {
+  return (
+    <View style={styles.appearanceRow}>
+      <View style={styles.appearancePreview}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.appearanceImage} />
+        ) : (
+          <Text style={styles.appearancePlaceholderText}>Kein Bild</Text>
+        )}
+      </View>
+      <View style={{ flex: 1, gap: 4 }}>
+        <Text style={styles.cardText}>{label}</Text>
+        {canManage ? (
+          <View style={{ flexDirection: "row", gap: spacing.md }}>
+            <Pressable onPress={onPick} disabled={uploading}>
+              <Text style={styles.addLink}>{uploading ? "Lädt hoch…" : imageUrl ? "Ändern" : "Hochladen"}</Text>
+            </Pressable>
+            {imageUrl && !uploading && (
+              <Pressable onPress={onRemove}>
+                <Text style={styles.dangerLink}>Entfernen</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : (
+          <Text style={styles.placeholder}>Nur für Berechtigte änderbar.</Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function SettingsTab({ guild, token, can, onGuildUpdated, onEditDescription, onEditRules, onManageRoles, onEditRole }) {
+  const [uploadingField, setUploadingField] = useState(null); // "banner" | "logo" | null
+  const [uploadError, setUploadError] = useState(null);
+  const canManageAppearance = can("manage_appearance");
+
+  async function pickAndUpload(field) {
+    setUploadError(null);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setUploadError("Zugriff auf Fotos wurde nicht erlaubt - in den Handy-Einstellungen aktivierbar.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: field === "banner" ? [16, 9] : [1, 1],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    setUploadingField(field);
+    try {
+      const updated =
+        field === "banner"
+          ? await uploadGuildBanner(token, result.assets[0])
+          : await uploadGuildLogo(token, result.assets[0]);
+      onGuildUpdated(updated);
+    } catch (err) {
+      setUploadError(err?.message ?? String(err));
+    } finally {
+      setUploadingField(null);
+    }
+  }
+
+  async function removeImage(field) {
+    setUploadError(null);
+    setUploadingField(field);
+    try {
+      const updated = field === "banner" ? await removeGuildBanner(token) : await removeGuildLogo(token);
+      onGuildUpdated(updated);
+    } catch (err) {
+      setUploadError(err?.message ?? String(err));
+    } finally {
+      setUploadingField(null);
+    }
+  }
+
   return (
     <View style={{ gap: spacing.lg }}>
       <View style={{ gap: spacing.sm }}>
         <Text style={styles.subheading}>Erscheinungsbild</Text>
-        <View style={styles.comingSoonCard}>
-          <Text style={styles.cardText}>Titelbild & Gilden-Logo hochladen</Text>
-          <Text style={styles.placeholder}>Bald verfügbar - Upload folgt in einer kommenden Version.</Text>
-        </View>
+        <AppearanceUploadRow
+          label="Titelbild"
+          imageUrl={guild.bannerUrl}
+          canManage={canManageAppearance}
+          uploading={uploadingField === "banner"}
+          onPick={() => pickAndUpload("banner")}
+          onRemove={() => removeImage("banner")}
+        />
+        <AppearanceUploadRow
+          label="Gilden-Logo"
+          imageUrl={guild.logoUrl}
+          canManage={canManageAppearance}
+          uploading={uploadingField === "logo"}
+          onPick={() => pickAndUpload("logo")}
+          onRemove={() => removeImage("logo")}
+        />
+        {uploadError && <Text style={styles.error}>{uploadError}</Text>}
       </View>
 
       <View style={{ gap: spacing.sm }}>
@@ -492,6 +604,249 @@ function SettingsTab({ guild, can, onEditDescription, onEditRules, onManageRoles
         </View>
       )}
     </View>
+  );
+}
+
+/** Eine Beitragskarte auf der Pinnwand inkl. Reaktion, Kommentare (auf-/zuklappbar), Anpinnen/Löschen. */
+function GuildPostCard({
+  post,
+  index,
+  myUuid,
+  canManagePosts,
+  expanded,
+  commentDraft,
+  onToggleExpanded,
+  onReact,
+  onTogglePin,
+  onDelete,
+  onCommentDraftChange,
+  onAddComment,
+  onDeleteComment,
+}) {
+  const isAuthor = post.authorUuid === myUuid;
+
+  return (
+    <FadeInItem index={index} style={styles.postCard}>
+      {post.isPinned && <Text style={styles.pinnedBadge}>📌 Angepinnt</Text>}
+      <View style={styles.postHeaderRow}>
+        <Text style={styles.postAuthor}>{post.author}</Text>
+        <Text style={styles.postDate}>{formatEventDate(post.createdAt)}</Text>
+      </View>
+      {post.content && <Text style={styles.cardText}>{post.content}</Text>}
+      {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={styles.postImage} />}
+
+      <View style={styles.postActionsRow}>
+        <Pressable onPress={onReact} style={styles.postActionBtn}>
+          <Text style={[styles.postActionText, post.myReaction && styles.postActionActive]}>
+            {post.myReaction ? "❤️" : "🤍"} {post.reactionsCount}
+          </Text>
+        </Pressable>
+        <Pressable onPress={onToggleExpanded} style={styles.postActionBtn}>
+          <Text style={styles.postActionText}>💬 {post.comments.length}</Text>
+        </Pressable>
+        {canManagePosts && (
+          <Pressable onPress={onTogglePin} style={styles.postActionBtn}>
+            <Text style={styles.postActionText}>{post.isPinned ? "Loslösen" : "Anpinnen"}</Text>
+          </Pressable>
+        )}
+        {(isAuthor || canManagePosts) && (
+          <Pressable onPress={onDelete} style={styles.postActionBtn}>
+            <Text style={styles.dangerLink}>Löschen</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {expanded && (
+        <View style={{ gap: spacing.xs, marginTop: spacing.xs }}>
+          {post.comments.map((c) => (
+            <View key={c.id} style={styles.commentRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.commentAuthor}>{c.author}</Text>
+                <Text style={styles.commentText}>{c.content}</Text>
+              </View>
+              {(c.authorUuid === myUuid || canManagePosts) && (
+                <Pressable onPress={() => onDeleteComment(c.id)}>
+                  <Text style={styles.dangerLink}>✕</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+          <View style={styles.commentComposerRow}>
+            <TextInput
+              style={styles.commentInput}
+              value={commentDraft}
+              onChangeText={onCommentDraftChange}
+              placeholder="Kommentieren…"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Pressable onPress={onAddComment}>
+              <Text style={styles.addLink}>Senden</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+    </FadeInItem>
+  );
+}
+
+/**
+ * Gilden-Pinnwand (19.07.2026) - Server-Endpunkte (`feed`/`storePost`/...)
+ * existierten schon seit 18.07.2026, waren aber nie in der App verdrahtet.
+ * Facebook-Gruppen-Vorbild: bleibende Beiträge mit Bild/Reaktion/Kommentaren,
+ * im Gegensatz zum flüchtigen Chat-Tab. Eigene FlatList statt in die
+ * gemeinsame ScrollView eingebettet (verschachtelte scrollbare Listen sind
+ * in RN problematisch), analog zu GuildChatPanel.
+ */
+function GuildPostsTab({ token, myUuid, can }) {
+  const [posts, setPosts] = useState(undefined);
+  const [composerText, setComposerText] = useState("");
+  const [composerImage, setComposerImage] = useState(null);
+  const [posting, setPosting] = useState(false);
+  const [commentDrafts, setCommentDrafts] = useState({});
+  const [expandedPostId, setExpandedPostId] = useState(null);
+  const canManagePosts = can("manage_posts");
+
+  const reload = useCallback(() => {
+    if (!token) return;
+    getGuildFeed(token).then(setPosts).catch(() => setPosts([]));
+  }, [token]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  async function pickComposerImage() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.[0]) setComposerImage(result.assets[0]);
+  }
+
+  async function handlePost() {
+    if (!composerText.trim() && !composerImage) return;
+    setPosting(true);
+    try {
+      const post = await createGuildPost(token, { content: composerText.trim() || null, imageAsset: composerImage });
+      setPosts((prev) => [post, ...(prev ?? [])]);
+      setComposerText("");
+      setComposerImage(null);
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function handleDeletePost(postId) {
+    await deleteGuildPost(token, postId);
+    setPosts((prev) => (prev ?? []).filter((p) => p.id !== postId));
+  }
+
+  async function handleTogglePin(postId) {
+    await toggleGuildPostPin(token, postId);
+    reload(); // Reihenfolge kann sich aendern (angepinnte Beitraege zuerst) - einfacher Neu-Fetch statt manueller Neusortierung
+  }
+
+  async function handleReact(post) {
+    setPosts((prev) =>
+      (prev ?? []).map((p) =>
+        p.id === post.id
+          ? { ...p, myReaction: !p.myReaction, reactionsCount: p.reactionsCount + (p.myReaction ? -1 : 1) }
+          : p
+      )
+    );
+    try {
+      const result = await toggleGuildPostReaction(token, post.id);
+      setPosts((prev) =>
+        (prev ?? []).map((p) => (p.id === post.id ? { ...p, myReaction: result.myReaction, reactionsCount: result.reactionsCount } : p))
+      );
+    } catch {
+      // Fehlschlag -> auf den Stand vor dem optimistischen Update zurueckfallen
+      setPosts((prev) =>
+        (prev ?? []).map((p) => (p.id === post.id ? { ...p, myReaction: post.myReaction, reactionsCount: post.reactionsCount } : p))
+      );
+    }
+  }
+
+  async function handleAddComment(postId) {
+    const content = (commentDrafts[postId] ?? "").trim();
+    if (!content) return;
+    const comment = await createGuildPostComment(token, postId, content);
+    setPosts((prev) => (prev ?? []).map((p) => (p.id === postId ? { ...p, comments: [...p.comments, comment] } : p)));
+    setCommentDrafts((prev) => ({ ...prev, [postId]: "" }));
+  }
+
+  async function handleDeleteComment(postId, commentId) {
+    await deleteGuildPostComment(token, commentId);
+    setPosts((prev) =>
+      (prev ?? []).map((p) => (p.id === postId ? { ...p, comments: p.comments.filter((c) => c.id !== commentId) } : p))
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      {posts === undefined ? (
+        <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.xl }} />
+      ) : (
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.tabContent}
+          ListHeaderComponent={
+            <View style={styles.composerCard}>
+              <TextInput
+                style={styles.textArea}
+                placeholder="Was gibt's Neues in der Gilde?"
+                placeholderTextColor={colors.textMuted}
+                value={composerText}
+                onChangeText={setComposerText}
+                multiline
+                maxLength={3000}
+              />
+              {composerImage && (
+                <View style={styles.composerImageWrap}>
+                  <Image source={{ uri: composerImage.uri }} style={styles.composerImage} />
+                  <Pressable style={styles.composerImageRemove} onPress={() => setComposerImage(null)}>
+                    <Text style={styles.composerImageRemoveText}>✕</Text>
+                  </Pressable>
+                </View>
+              )}
+              <View style={styles.composerActionsRow}>
+                <Pressable onPress={pickComposerImage}>
+                  <Text style={styles.addLink}>🖼 Bild</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalBtnPrimary, (posting || (!composerText.trim() && !composerImage)) && styles.btnDisabled]}
+                  onPress={handlePost}
+                  disabled={posting || (!composerText.trim() && !composerImage)}
+                >
+                  <Text style={styles.modalBtnPrimaryText}>{posting ? "Postet…" : "Posten"}</Text>
+                </Pressable>
+              </View>
+            </View>
+          }
+          ListEmptyComponent={<Text style={styles.placeholder}>Noch keine Beiträge - schreib den ersten!</Text>}
+          renderItem={({ item, index }) => (
+            <GuildPostCard
+              post={item}
+              index={index}
+              myUuid={myUuid}
+              canManagePosts={canManagePosts}
+              expanded={expandedPostId === item.id}
+              commentDraft={commentDrafts[item.id] ?? ""}
+              onToggleExpanded={() => setExpandedPostId((prev) => (prev === item.id ? null : item.id))}
+              onReact={() => handleReact(item)}
+              onTogglePin={() => handleTogglePin(item.id)}
+              onDelete={() => handleDeletePost(item.id)}
+              onCommentDraftChange={(text) => setCommentDrafts((prev) => ({ ...prev, [item.id]: text }))}
+              onAddComment={() => handleAddComment(item.id)}
+              onDeleteComment={(commentId) => handleDeleteComment(item.id, commentId)}
+            />
+          )}
+        />
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -868,6 +1223,67 @@ function EventEditorModal({ event, onCancel, onSave, onDelete }) {
 }
 
 const styles = StyleSheet.create({
+  composerCard: {
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  composerActionsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  composerImageWrap: { alignSelf: "flex-start", position: "relative" },
+  composerImage: { width: 96, height: 96, borderRadius: radius.sm, resizeMode: "cover" },
+  composerImageRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.danger,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  composerImageRemoveText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  btnDisabled: { opacity: 0.5 },
+
+  postCard: {
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  pinnedBadge: { fontSize: 10, fontWeight: "800", color: colors.gold, letterSpacing: 0.4, textTransform: "uppercase" },
+  postHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  postAuthor: { fontSize: 13, fontWeight: "800", color: colors.text },
+  postDate: { fontSize: 11, color: colors.textMuted },
+  postImage: { width: "100%", height: 180, borderRadius: radius.sm, resizeMode: "cover", marginTop: spacing.xs },
+  postActionsRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.xs },
+  postActionBtn: {},
+  postActionText: { fontSize: 12, fontWeight: "700", color: colors.textMuted },
+  postActionActive: { color: colors.gold },
+
+  commentRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingVertical: 4 },
+  commentAuthor: { fontSize: 11, fontWeight: "800", color: colors.gold },
+  commentText: { fontSize: 12, color: colors.text },
+  commentComposerRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
+  commentInput: {
+    flex: 1,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    color: colors.text,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    fontSize: 12,
+  },
+
   container: { flex: 1, backgroundColor: colors.bg },
   header: { padding: spacing.lg, paddingBottom: spacing.sm },
   headerAccent: {
@@ -988,15 +1404,31 @@ const styles = StyleSheet.create({
   statPillValue: { fontSize: 16, fontWeight: "800", color: colors.text },
   statPillLabel: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
 
-  comingSoonCard: {
+  appearanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
     padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.panel,
     borderWidth: 1,
     borderColor: colors.goldSoft,
-    borderStyle: "dashed",
-    gap: 4,
   },
+  appearancePreview: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.sm,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  appearanceImage: { width: "100%", height: "100%", resizeMode: "cover" },
+  appearancePlaceholderText: { fontSize: 9, color: colors.textMuted, textAlign: "center" },
+  dangerLink: { fontSize: 12, fontWeight: "700", color: colors.danger },
+  error: { color: colors.danger, fontSize: 12 },
 
   chatList: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: spacing.xs, flexGrow: 1 },
   chatMessageRow: {

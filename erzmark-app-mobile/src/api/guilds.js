@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiRequest, apiUpload } from "./client";
 
 // WICHTIG: MMOCore (das Gildensystem im Spiel) erlaubt nur eine Gilde pro
 // Spieler - Daten liegen als YAML-Dateien direkt auf dem Server
@@ -92,4 +92,79 @@ export function updateGuildEvent(token, eventId, { title, description, startsAt 
 
 export function deleteGuildEvent(token, eventId) {
   return apiRequest(`/guild/events/${eventId}`, { method: "DELETE", token });
+}
+
+// ---- Titelbild/Logo (19.07.2026) ----
+// `pickerAsset` ist das Ergebnis von expo-image-picker (`{ uri, mimeType,
+// fileName }`) - wird hier in ein FormData für den Multipart-Upload
+// umgewandelt. Rechte-Prüfung ("manage_appearance") passiert serverseitig
+// in GuildController.php, `guild.myPermissions` steuert nur die UI.
+function assetToFormData(fieldName, asset) {
+  const formData = new FormData();
+  formData.append(fieldName, {
+    uri: asset.uri,
+    name: asset.fileName ?? `${fieldName}.jpg`,
+    type: asset.mimeType ?? "image/jpeg",
+  });
+  return formData;
+}
+
+export function uploadGuildBanner(token, asset) {
+  return apiUpload("/guild/banner", { token, formData: assetToFormData("banner", asset) });
+}
+
+export function removeGuildBanner(token) {
+  return apiRequest("/guild/banner", { method: "DELETE", token });
+}
+
+export function uploadGuildLogo(token, asset) {
+  return apiUpload("/guild/logo", { token, formData: assetToFormData("logo", asset) });
+}
+
+export function removeGuildLogo(token) {
+  return apiRequest("/guild/logo", { method: "DELETE", token });
+}
+
+// ---- Gilden-Pinnwand (18.07.2026 serverseitig gebaut, 19.07.2026 in der
+// App verdrahtet) - bleibende Beitraege mit Bild/Reaktionen/Kommentaren,
+// im Gegensatz zum fluechtigen Chat. Jedes Mitglied darf posten/
+// kommentieren/reagieren; Anpinnen und das Loeschen FREMDER Beitraege/
+// Kommentare braucht "manage_posts" (serverseitig geprueft, den eigenen
+// Beitrag/Kommentar darf jeder immer selbst loeschen).
+
+export function getGuildFeed(token) {
+  return apiRequest("/guild/feed", { token });
+}
+
+export function createGuildPost(token, { content, imageAsset }) {
+  const formData = new FormData();
+  if (content) formData.append("content", content);
+  if (imageAsset) {
+    formData.append("image", {
+      uri: imageAsset.uri,
+      name: imageAsset.fileName ?? "post.jpg",
+      type: imageAsset.mimeType ?? "image/jpeg",
+    });
+  }
+  return apiUpload("/guild/posts", { token, formData });
+}
+
+export function deleteGuildPost(token, postId) {
+  return apiRequest(`/guild/posts/${postId}`, { method: "DELETE", token });
+}
+
+export function toggleGuildPostPin(token, postId) {
+  return apiRequest(`/guild/posts/${postId}/pin`, { method: "PATCH", token });
+}
+
+export function toggleGuildPostReaction(token, postId) {
+  return apiRequest(`/guild/posts/${postId}/react`, { method: "POST", token });
+}
+
+export function createGuildPostComment(token, postId, content) {
+  return apiRequest(`/guild/posts/${postId}/comments`, { method: "POST", token, body: { content } });
+}
+
+export function deleteGuildPostComment(token, commentId) {
+  return apiRequest(`/guild/comments/${commentId}`, { method: "DELETE", token });
 }

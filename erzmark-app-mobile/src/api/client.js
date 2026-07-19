@@ -26,3 +26,24 @@ export async function apiRequest(path, { method = "GET", token, body } = {}) {
   }
   return response.json();
 }
+
+/**
+ * Wie `apiRequest`, aber für Datei-Uploads (multipart/form-data) - z.B.
+ * Gilden-Titelbild/Logo (19.07.2026). Bewusst OHNE `Content-Type`-Header:
+ * `fetch` setzt ihn bei einem `FormData`-Body selbst inkl. der nötigen
+ * `boundary`, ein manuell gesetzter `multipart/form-data`-Header ohne
+ * Boundary würde der Server nicht parsen können.
+ * @param {string} path z.B. "/guild/banner"
+ * @param {{ method?: string, token?: string, formData: FormData }} options
+ */
+export async function apiUpload(path, { method = "POST", token, formData }) {
+  const headers = { Accept: "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${BASE_URL}${path}`, { method, headers, body: formData });
+
+  if (!response.ok) {
+    throw new Error(`API-Fehler ${response.status}: ${await response.text()}`);
+  }
+  return response.json();
+}
