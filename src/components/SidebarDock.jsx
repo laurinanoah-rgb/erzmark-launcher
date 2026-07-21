@@ -1,7 +1,7 @@
-import { useState } from "react";
 import NewsFeed from "./NewsFeed.jsx";
 import ScreenshotGallery from "./ScreenshotGallery.jsx";
 import CharacterProfiles from "./CharacterProfiles.jsx";
+import DockTabs from "./DockTabs.jsx";
 
 function NewsTabIcon() {
   return (
@@ -31,12 +31,6 @@ function ProfilesTabIcon() {
   );
 }
 
-const TABS = [
-  { id: "news", label: "Neuigkeiten", Icon: NewsTabIcon },
-  { id: "profiles", label: "Spielstände", Icon: ProfilesTabIcon },
-  { id: "gallery", label: "Galerie", Icon: GalleryTabIcon },
-];
-
 /**
  * "Infos"-Dock am rechten Rand: Neuigkeiten, Spielstände (MMOProfiles) und
  * Screenshot-Galerie – immer nur ein Panel sichtbar, dafür groß und klar
@@ -44,32 +38,11 @@ const TABS = [
  * SocialDock.jsx.
  */
 export default function SidebarDock() {
-  const [active, setActive] = useState("news");
+  const tabs = [
+    { id: "news", label: "Neuigkeiten", Icon: NewsTabIcon, color: "blue", content: <NewsFeed /> },
+    { id: "profiles", label: "Spielstände", Icon: ProfilesTabIcon, color: "gold", content: <CharacterProfiles /> },
+    { id: "gallery", label: "Galerie", Icon: GalleryTabIcon, color: "green", content: <ScreenshotGallery /> },
+  ];
 
-  return (
-    <div className="erzmark-dock">
-      <nav className="erzmark-dock-rail" aria-label="Widget-Auswahl">
-        {TABS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            className={`erzmark-dock-tab${active === id ? " is-active" : ""}`}
-            onClick={() => setActive(id)}
-            title={label}
-            aria-label={label}
-            aria-pressed={active === id}
-          >
-            <Icon />
-            <span className="erzmark-dock-tab-label">{label}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="erzmark-dock-panel" key={active}>
-        {active === "news" && <NewsFeed />}
-        {active === "profiles" && <CharacterProfiles />}
-        {active === "gallery" && <ScreenshotGallery />}
-      </div>
-    </div>
-  );
+  return <DockTabs tabs={tabs} />;
 }

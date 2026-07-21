@@ -18,3 +18,8 @@ HANDOFF.md
 # Lokale Dev-Server-Konfiguration für KI-Coding-Assistenten (z.B. Claude Code
 # Browser-Preview) - rein lokales Tooling, nicht Teil der App.
 .claude/
+
+# R.U.D.O.L.F. (interner KI-Agent) - venv, Secrets und Logs nicht committen.
+ERZMARK AGENT/venv/
+ERZMARK AGENT/.env
+ERZMARK AGENT/logs/

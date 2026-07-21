@@ -4,9 +4,11 @@ import MainScreen from "./components/MainScreen.jsx";
 import LoadingSpinner from "./components/LoadingSpinner.jsx";
 import UpdateVideoScreen from "./components/UpdateVideoScreen.jsx";
 import UpdateAvailableScreen from "./components/UpdateAvailableScreen.jsx";
+import BootAnimation from "./components/BootAnimation.jsx";
 import { tryRestoreSession } from "./api/auth.js";
 import { DEV_MANIFEST } from "./api/devManifest.js";
 import { checkForLauncherUpdate } from "./api/appUpdater.js";
+import { getPerformanceTier } from "./utils/performanceTier.js";
 
 // Merkt sich lokal, welche Client-Version das Update-Video schon gezeigt
 // bekommen hat, damit es nur einmal pro neuem Update abgespielt wird (nicht
@@ -26,6 +28,8 @@ export default function App() {
   const [pendingUpdate, setPendingUpdate] = useState(null);
   const [session, setSession] = useState(null);
   const [restoreError, setRestoreError] = useState(null);
+  const [bootDone, setBootDone] = useState(false);
+  const [perfTier] = useState(getPerformanceTier);
 
   // Prüft/stellt die gespeicherte Login-Session wieder her und wählt den
   // passenden Folge-Screen. Wird sowohl direkt beim Start aufgerufen (wenn
@@ -99,6 +103,7 @@ export default function App() {
 
   return (
     <div className="erzmark-app">
+      {!bootDone && <BootAnimation tier={perfTier} onComplete={() => setBootDone(true)} />}
       {status === "updateCheck" && <LoadingSpinner label="Suche nach Updates…" />}
       {status === "updateAvailable" && pendingUpdate && (
         <UpdateAvailableScreen

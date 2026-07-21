@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import gsap from "gsap";
 import { getVersion } from "@tauri-apps/api/app";
 import { logout } from "../api/auth.js";
 import { getPlayStatus, installOrUpdate, launchGame, onGameExited, onGameStarted } from "../api/game.js";
 import { getCurrentSkinUrl } from "../api/skin.js";
 import { openExternalUrl } from "../api/events.js";
+import { getPerformanceTier } from "../utils/performanceTier.js";
+import { NotificationsProvider } from "../state/NotificationsContext.jsx";
+import NotificationBell from "./NotificationBell.jsx";
 import LauncherUpdateBanner from "./LauncherUpdateBanner.jsx";
 import SidebarDock from "./SidebarDock.jsx";
 import SocialDock from "./SocialDock.jsx";
@@ -154,8 +158,70 @@ export default function MainScreen({ session, onLoggedOut }) {
   const [heroSkinUrl, setHeroSkinUrl] = useState(null);
   const [appVersion, setAppVersion] = useState(null);
 
+  const phantomLogoRef = useRef(null);
+  const sigilRef = useRef(null);
+  const wordmarkRef = useRef(null);
+  const accountRef = useRef(null);
+  const bossEventRef = useRef(null);
+  const sidebarLeftRef = useRef(null);
+  const sidebarRightRef = useRef(null);
+  const heroMainRef = useRef(null);
+  const footerRef = useRef(null);
+  const cornerRef = useRef(null);
+
   useEffect(() => {
     refreshStatus();
+  }, []);
+
+  // Eintritts-Sequenz in den Hauptbildschirm (Launcher-Update-TODO, Abschnitt
+  // 1, "Transition Boot -> Hauptmenü"): das große Logo schrumpft sichtbar auf
+  // Position/Größe des kleinen Kopf-Siegels ("Shared-Element" statt hartem
+  // Schnitt — Erzmark hat keine Server-Liste, das Siegel ist hier das
+  // Äquivalent zum Server-Icon aus der Ideensammlung). Die restlichen
+  // Bereiche setzen sich in leicht gestaffelten Tiefenebenen dahinter
+  // zusammen (Header -> Sidebars/Hero -> Footer), für ein dezentes
+  // Parallax-Gefühl. Läuft unabhängig davon, ob man über Login oder
+  // wiederhergestellte Session hierher kommt (einmalig pro Mount).
+  useEffect(() => {
+    const tier = getPerformanceTier();
+    const groups = [wordmarkRef, accountRef, bossEventRef, sidebarLeftRef, sidebarRightRef, heroMainRef, footerRef, cornerRef]
+      .map((r) => r.current)
+      .filter(Boolean);
+
+    if (tier !== "full") {
+      const tl = gsap.to(groups, { opacity: 1, duration: 0.3, ease: "power1.out" });
+      if (sigilRef.current) gsap.set(sigilRef.current, { opacity: 1 });
+      return () => tl.kill();
+    }
+
+    const sigilRect = sigilRef.current?.getBoundingClientRect();
+    const phantom = phantomLogoRef.current;
+    if (!sigilRect || !phantom) {
+      gsap.set(groups, { opacity: 1 });
+      if (sigilRef.current) gsap.set(sigilRef.current, { opacity: 1 });
+      return;
+    }
+
+    const phantomRect = phantom.getBoundingClientRect();
+    const scale = sigilRect.width / phantomRect.width;
+    const dx = sigilRect.left + sigilRect.width / 2 - (phantomRect.left + phantomRect.width / 2);
+    const dy = sigilRect.top + sigilRect.height / 2 - (phantomRect.top + phantomRect.height / 2);
+
+    const tl = gsap.timeline();
+    tl.set(phantom, { opacity: 1, scale: 1, x: 0, y: 0 })
+      .to(phantom, { x: dx, y: dy, scale, duration: 0.65, ease: "power3.inOut" }, 0)
+      .to(phantom, { opacity: 0, duration: 0.18 }, 0.5)
+      .to(sigilRef.current, { opacity: 1, duration: 0.18 }, 0.5)
+      .to([wordmarkRef.current, accountRef.current], { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.15)
+      .to(bossEventRef.current, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.22)
+      .to(sidebarLeftRef.current, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 0.32)
+      .to(sidebarRightRef.current, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 0.38)
+      .to(heroMainRef.current, { opacity: 1, scale: 1, duration: 0.55, ease: "power2.out" }, 0.34)
+      .to(footerRef.current, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0.55)
+      .to(cornerRef.current, { opacity: 1, duration: 0.35, ease: "power1.out" }, 0.62);
+
+    return () => tl.kill();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Versionsnummer unten links – rein informativ, hilft beim Support
@@ -268,34 +334,43 @@ export default function MainScreen({ session, onLoggedOut }) {
     progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : null;
 
   return (
+    <NotificationsProvider>
     <div className="erzmark-main-screen">
       <Embers />
       <LauncherUpdateBanner />
+      <div ref={phantomLogoRef} className="erzmark-intro-phantom-logo" style={{ opacity: 0 }} aria-hidden="true" />
 
       <header className="erzmark-header">
         <div className="erzmark-header-brand">
-          <div className="erzmark-sigil">
+          <div className="erzmark-sigil" ref={sigilRef} style={{ opacity: 0 }}>
             <div className="erzmark-logo erzmark-logo-small" />
           </div>
-          <span className="erzmark-wordmark">Erzmark</span>
+          <span className="erzmark-wordmark" ref={wordmarkRef} style={{ opacity: 0, transform: "translateY(-8px)" }}>
+            Erzmark
+          </span>
         </div>
-        <div className="erzmark-account-plaque">
-          <span className="erzmark-account-name">{session?.username}</span>
-          <button className="erzmark-link-btn" onClick={handleLogout} disabled={loggingOut}>
-            Logout
-          </button>
+        <div className="erzmark-header-actions" ref={accountRef} style={{ opacity: 0, transform: "translateY(-8px)" }}>
+          <NotificationBell />
+          <div className="erzmark-account-plaque">
+            <span className="erzmark-account-name">{session?.username}</span>
+            <button className="erzmark-link-btn" onClick={handleLogout} disabled={loggingOut}>
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="erzmark-body">
-        <BossEventCountdown />
+        <div ref={bossEventRef} style={{ opacity: 0, transform: "translateY(-8px)" }}>
+          <BossEventCountdown />
+        </div>
 
         <div className="erzmark-columns">
-          <aside className="erzmark-sidebar erzmark-sidebar-left">
+          <aside className="erzmark-sidebar erzmark-sidebar-left" ref={sidebarLeftRef} style={{ opacity: 0, transform: "translateX(-18px)" }}>
             <SocialDock />
           </aside>
 
-          <main className="erzmark-main-content">
+          <main className="erzmark-main-content" ref={heroMainRef} style={{ opacity: 0, transform: "scale(0.97)" }}>
             <div className="erzmark-hero-stage">
               <span className="erzmark-hero-name">{session?.username}</span>
 
@@ -341,13 +416,13 @@ export default function MainScreen({ session, onLoggedOut }) {
             {actionError && <p className="erzmark-error">{actionError}</p>}
           </main>
 
-          <aside className="erzmark-sidebar">
+          <aside className="erzmark-sidebar" ref={sidebarRightRef} style={{ opacity: 0, transform: "translateX(18px)" }}>
             <SidebarDock />
           </aside>
         </div>
       </div>
 
-      <footer className="erzmark-secondary-actions">
+      <footer className="erzmark-secondary-actions" ref={footerRef} style={{ opacity: 0, transform: "translateY(10px)" }}>
         <div className="erzmark-secondary-spacer" aria-hidden="true" />
 
         <div className="erzmark-secondary-center">
@@ -397,7 +472,7 @@ export default function MainScreen({ session, onLoggedOut }) {
         </div>
       </footer>
 
-      <div className="erzmark-bottom-left-corner">
+      <div className="erzmark-bottom-left-corner" ref={cornerRef} style={{ opacity: 0 }}>
         {appVersion && <span className="erzmark-version-corner">v{appVersion}</span>}
 
         <button
@@ -414,5 +489,6 @@ export default function MainScreen({ session, onLoggedOut }) {
       {showSettings && <SettingsScreen onClose={() => setShowSettings(false)} />}
       {showSkinChanger && <SkinChangerScreen onClose={() => setShowSkinChanger(false)} />}
     </div>
+    </NotificationsProvider>
   );
 }

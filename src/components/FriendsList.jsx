@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getFriends } from "../api/friends.js";
+import { useNotifications } from "../state/NotificationsContext.jsx";
 
 // Online-Status kann sich jederzeit ändern -> regelmäßig neu laden, während
 // der Launcher offen bleibt.
@@ -28,6 +29,7 @@ export default function FriendsList({ onOnlineCountChange }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const timerRef = useRef(null);
+  const { friendRequests, respondFriendRequest } = useNotifications();
 
   useEffect(() => {
     refresh();
@@ -66,10 +68,34 @@ export default function FriendsList({ onOnlineCountChange }) {
         </button>
       </div>
 
+      {friendRequests.length > 0 && (
+        <div className="erzmark-friend-requests">
+          {friendRequests.map((req) => (
+            <div key={req.id} className="erzmark-friend-request-card">
+              <span className="erzmark-friend-request-text">
+                <strong>{req.data.requesterName}</strong> möchte mit dir befreundet sein. Akzeptieren?
+              </span>
+              <div className="erzmark-friend-request-actions">
+                <button
+                  type="button"
+                  className="erzmark-btn-primary-small"
+                  onClick={() => respondFriendRequest(req.id, true)}
+                >
+                  Annehmen
+                </button>
+                <button type="button" className="erzmark-link-btn" onClick={() => respondFriendRequest(req.id, false)}>
+                  Ablehnen
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading && <p className="erzmark-hint">Lädt…</p>}
       {error && <p className="erzmark-error">{error}</p>}
 
-      {!loading && !error && friends.length === 0 && (
+      {!loading && !error && friends.length === 0 && friendRequests.length === 0 && (
         <p className="erzmark-gallery-empty">Noch keine Freunde – füge welche im Spiel hinzu.</p>
       )}
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import FriendsList from "./FriendsList.jsx";
 import ComingSoonPanel from "./ComingSoonPanel.jsx";
+import DockTabs from "./DockTabs.jsx";
 
 function FriendsTabIcon() {
   return (
@@ -31,12 +32,6 @@ function MapTabIcon() {
   );
 }
 
-const TABS = [
-  { id: "friends", label: "Freunde", Icon: FriendsTabIcon },
-  { id: "guild", label: "Gilde", Icon: GuildTabIcon },
-  { id: "map", label: "Karte", Icon: MapTabIcon },
-];
-
 /**
  * "Soziales"-Dock am linken Rand: Freunde, Gilde und Karte. Gegenstück zum
  * "Infos"-Dock rechts (SidebarDock.jsx: Neuigkeiten/Spielstände/Galerie).
@@ -45,48 +40,44 @@ const TABS = [
  * nicht gebaut; die Karte existiert serverseitig bislang gar nicht.
  */
 export default function SocialDock() {
-  const [active, setActive] = useState("friends");
   const [friendsOnline, setFriendsOnline] = useState(0);
 
-  return (
-    <div className="erzmark-dock">
-      <nav className="erzmark-dock-rail" aria-label="Widget-Auswahl">
-        {TABS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            className={`erzmark-dock-tab${active === id ? " is-active" : ""}`}
-            onClick={() => setActive(id)}
-            title={label}
-            aria-label={label}
-            aria-pressed={active === id}
-          >
-            <Icon />
-            <span className="erzmark-dock-tab-label">{label}</span>
-            {id === "friends" && friendsOnline > 0 && (
-              <span className="erzmark-dock-tab-badge">{friendsOnline}</span>
-            )}
-          </button>
-        ))}
-      </nav>
+  const tabs = [
+    {
+      id: "friends",
+      label: "Freunde",
+      Icon: FriendsTabIcon,
+      color: "blue",
+      badge: friendsOnline > 0 ? friendsOnline : null,
+      content: <FriendsList onOnlineCountChange={setFriendsOnline} />,
+    },
+    {
+      id: "guild",
+      label: "Gilde",
+      Icon: GuildTabIcon,
+      color: "gold",
+      content: (
+        <ComingSoonPanel
+          icon={<GuildTabIcon />}
+          title="Gilden-Ansicht"
+          description="Deine MMOCore-Gilde wird hier bald mit Mitgliedern und Rang angezeigt."
+        />
+      ),
+    },
+    {
+      id: "map",
+      label: "Karte",
+      Icon: MapTabIcon,
+      color: "green",
+      content: (
+        <ComingSoonPanel
+          icon={<MapTabIcon />}
+          title="Interaktive Karte"
+          description="Eine Live-Karte der Erzmark-Welt ist in Planung."
+        />
+      ),
+    },
+  ];
 
-      <div className="erzmark-dock-panel" key={active}>
-        {active === "friends" && <FriendsList onOnlineCountChange={setFriendsOnline} />}
-        {active === "guild" && (
-          <ComingSoonPanel
-            icon={<GuildTabIcon />}
-            title="Gilden-Ansicht"
-            description="Deine MMOCore-Gilde wird hier bald mit Mitgliedern und Rang angezeigt."
-          />
-        )}
-        {active === "map" && (
-          <ComingSoonPanel
-            icon={<MapTabIcon />}
-            title="Interaktive Karte"
-            description="Eine Live-Karte der Erzmark-Welt ist in Planung."
-          />
-        )}
-      </div>
-    </div>
-  );
+  return <DockTabs tabs={tabs} />;
 }
