@@ -82,13 +82,23 @@ Stand: 2026-07-21. Reine Planungsliste aus `Erzmark_Launcher_Update_Ideensammlun
 - [x] Freundschaftsanfrage-Karte im Freunde-Tab ("{Spieler} möchte mit dir befreundet sein. Akzeptieren?") mit Annehmen/Ablehnen direkt im Launcher — [src/components/FriendsList.jsx](src/components/FriendsList.jsx)
 - [x] Noch mit Mock-Daten/-API ([src/api/notifications.js](src/api/notifications.js)) im Format der künftigen echten API — **Annehmen/Ablehnen wirkt aktuell nur lokal, noch nicht mit MMOCore verbunden.**
 
-### Teil 2: Echte MMOCore-Anbindung (noch offen — nächster Schritt)
-- **Recherche (21.07.2026):** Freundschaften liegen in MySQL (`mcmmo.mmocore_playerdata.friends`, JSON-Array), nicht in riskanten YAML-Dateien wie bei Gilden — Schreibzugriff ist machbar, **aber nur wenn der Zielspieler offline ist** (sonst überschreibt der nächste MMOCore-Autosave den Launcher-Edit). Offene/eingehende Anfragen selbst werden von MMOCore aktuell **nicht persistent gespeichert** (rein Chat-basiert, beide Spieler müssen laut `friend-not-online-player`-Meldung gleichzeitig online sein) — dafür braucht es ein kleines eigenes Server-Plugin (Java, Vorbild: `ErzmarkDungeons`), das MMOCores Freundschaftsanfrage-Event abfängt und an einen neuen Laravel-Endpunkt meldet.
-- [ ] Kleines Server-Plugin: hookt `net.Indyuce.mmocore.api.player.social.FriendRequest`-Erstellung, meldet an Laravel-Endpunkt (persistiert die Anfrage, damit sie auch bei Offline-Empfänger sichtbar bleibt)
-- [ ] Neuer Laravel-Endpunkt: `friend_requests`-Tabelle (analog zu `guild_profiles` etc.), liefert offene Anfragen an Launcher/App
-- [ ] Accept-Endpunkt: schreibt beide UUIDs gegenseitig in `mmocore_playerdata.friends`, nur wenn Zielspieler offline (Prüfung über `lastloginapi_players`, gleiches Muster wie beim Online-Status in FriendsList)
-- [ ] `src/api/notifications.js` durch echte API-Calls ersetzen (Format ist bereits kompatibel)
-- [ ] Gleiches für die Mobile App (App braucht denselben Endpunkt, siehe Erweiterungen unten)
+### Teil 2: Echte MMOCore-Anbindung ✅ Backend live (21.07.2026)
+- **Recherche:** Freundschaften liegen in MySQL (`mcmmo.mmocore_playerdata.friends`, JSON-Array). Offene Anfragen selbst speichert MMOCore **nicht persistent** (nur `RequestManager` im Arbeitsspeicher, kein Event dafür) — daher Polling statt Event-Hook.
+- [x] **Neues Server-Plugin `ErzmarkSocial`** (`C:\Users\noah0\.claude\Erzmark\erzmark-social\`, Java/Maven wie `ErzmarkDungeons`): pollt `MMOCore.plugin.requestManager` alle 3s nach offenen Anfragen für Online-Spieler, meldet neue per HTTP an Laravel. Gebaut, auf `lobby-1` deployed, Server sauber neugestartet (0 Spieler online zu dem Zeitpunkt), Log bestätigt fehlerfreien Start + aktives Polling (`/erzmarksocial status`).
+- [x] **Laravel-Backend live** (`/var/www/minetrax`, DB vorher per `mysqldump` gesichert):
+  - Migration `friend_requests` (Status: pending/accepted/declined/synced)
+  - `POST /api/v1/social/friend-request` — vom Plugin befüllt, eigenes Secret (`ERZMARK_SOCIAL_SECRET` in `.env`), Live-verifiziert (201 bei korrektem Secret, 401 bei falschem)
+  - `GET /app-api/friend-requests` + `POST /app-api/friend-requests/{id}/respond` — Sanctum-authentifiziert
+  - `friends:sync-accepted` — läuft jede Minute (Scheduler), schreibt akzeptierte Anfragen erst in `mmocore_playerdata.friends`, wenn **beide** Spieler offline sind (kein Autosave-Konflikt), manuell fehlerfrei getestet
+- [x] **`/addfriend <Name>`-Befehl** (ErzmarkSocial-Plugin): funktioniert auch bei offline Zielspieler (im Gegensatz zu MMOCores eigenem `/friends add`, das laut `friend-not-online-player`-Meldung zwingend beide online voraussetzt). Ist der Zielspieler online, bekommt er zusätzlich die normale klickbare MMOCore-Chat-Nachricht (`/friends accept|deny <id>`, dieselbe Request-ID) — er kann also weiterhin per Chat-Klick annehmen, unabhängig davon ob er stattdessen Launcher/App nutzt.
+- [x] **Live-Test mit echten MMOCore-Objekten bestanden (21.07.2026):** `/erzmarksocial simulate <Spieler>` erzeugt eine echte `FriendRequest` über die reale RequestManager-API — vom Plugin erkannt, an Laravel gemeldet, korrekt in der DB gelandet. Dabei einen echten Bug gefunden+gefixt: `LaravelReporter.java` rief noch die ursprünglich geplante URL (`/api/internal/friend-requests`) statt der tatsächlich gebauten (`/api/v1/social/friend-request`) auf.
+
+### Teil 3: Launcher an echte Endpunkte angebunden ✅ (21.07.2026)
+- [x] Launcher holt sich jetzt zusätzlich einen Sanctum-Token (`POST /app-api/auth/minecraft`, gleicher Vertrag wie die Mobile App) — neues Rust-Modul [src-tauri/src/social.rs](src-tauri/src/social.rs) (`ensure_sanctum_token`, lazy + State-gecacht, nicht dauerhaft gespeichert, da jederzeit aus der laufenden Session neu ableitbar) + [src-tauri/src/social_commands.rs](src-tauri/src/social_commands.rs) (`get_friend_requests`, `respond_friend_request`)
+- [x] [src/api/notifications.js](src/api/notifications.js) ruft jetzt die echten Tauri-Commands auf statt Mock-Daten — Format blieb 1:1 kompatibel, daher keine Änderungen an NotificationsContext/NotificationBell/FriendsList nötig. "Gelesen"-Zustand (nur ein Launcher-UI-Konzept, der Server kennt nur pending/accepted/declined) wird lokal in `localStorage` gemerkt, gleiches Muster wie `App.jsx`.
+- [x] Rust (`cargo check`) + Frontend-Build fehlerfrei, v1.3.8 committed + gepusht.
+- [ ] **Noch zu tun:** echter End-to-End-Test im laufenden Tauri-Launcher (bisher nur der Backend-Teil bis Laravel live getestet, noch nicht durch den Launcher selbst durchgeklickt)
+- [ ] Gleiches für die Mobile App (App hat Sanctum-Auth schon, nur neue Calls + UI in `FriendsScreen.jsx`)
 
 ### Erweiterungen auf derselben Infrastruktur
 - [ ] Gilden-/Team-Einladungen über denselben Mechanismus

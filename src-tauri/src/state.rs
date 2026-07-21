@@ -23,4 +23,10 @@ pub struct AppState {
     /// im Frontend – der eigentliche "läuft/beendet"-Übergang läuft über die
     /// `game-started`/`game-exited`-Events.
     pub game_process: Mutex<Option<u32>>,
+    /// Sanctum-Bearer-Token für die app-api/*-Endpunkte (siehe social.rs),
+    /// lazy beim ersten Bedarf gegen den Minecraft-Access-Token getauscht.
+    /// Bewusst nur im Speicher (nicht wie der MS-Refresh-Token im Keyring
+    /// persistiert) – lässt sich jederzeit aus der laufenden Session neu
+    /// anfordern, kein Grund für dauerhafte Speicherung.
+    pub sanctum_token: Mutex<Option<String>>,
 }

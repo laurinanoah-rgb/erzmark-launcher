@@ -14,6 +14,8 @@ mod profiles_commands;
 mod settings;
 mod settings_commands;
 mod skin_commands;
+mod social;
+mod social_commands;
 mod state;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -43,6 +45,8 @@ pub fn run() {
             settings_commands::reset_installation,
             events_commands::get_boss_event,
             friends_commands::get_friends,
+            social_commands::get_friend_requests,
+            social_commands::respond_friend_request,
             profiles_commands::get_character_profiles,
             skin_commands::get_current_skin_url,
             skin_commands::set_skin_url,

@@ -85,3 +85,13 @@ pub const ERZMARK_NETWORK_STATUS_API_URL: &str = "https://erzmark.de/launcher/ne
 /// direkt über die echte Account-UUID als Primärschlüssel – siehe
 /// `profiles.rs`.
 pub const ERZMARK_PROFILES_API_URL: &str = "https://erzmark.de/launcher/profiles.php";
+
+// ---- app-api (Sanctum-authentifiziert, gleicher Unterbau wie die Mobile
+// App, siehe erzmark-app-mobile/src/api/auth.js + AppAuthController.php) ----
+
+/// Tauscht den bereits verifizierten Minecraft-Access-Token gegen einen
+/// Sanctum-Bearer-Token, der danach für alle app-api/*-Endpunkte gilt.
+pub const ERZMARK_APP_API_AUTH_URL: &str = "https://erzmark.de/api/app-api/auth/minecraft";
+
+/// Offene Freundschaftsanfragen (Launcher-Update-TODO, Abschnitt 4, Teil 3).
+pub const ERZMARK_FRIEND_REQUESTS_URL: &str = "https://erzmark.de/api/app-api/friend-requests";

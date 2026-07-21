@@ -1,55 +1,65 @@
-// Noch ohne echtes Backend (siehe Launcher-Update-TODO, Abschnitt 4 –
-// MMOCore-Integration ist ein eigener, separater Schritt: MMOCore hält
-// offene Freundschaftsanfragen nur ephemer im Chat, nicht persistent, daher
-// braucht es dafür ein kleines Server-Plugin + einen neuen Laravel-Endpunkt.
-// Diese Datei simuliert die künftige API 1:1 im selben Format, damit nur
-// die Implementierung hier ersetzt werden muss, sobald Teil 2 steht.
-//
-// Format je Notification: { id, type: "friend_request" | "info", createdAt
-// (unix ms), read, title, body, data? }. Bei "friend_request" enthält
-// `data` { requesterUuid, requesterName, status: "pending"|"accepted"|"declined" }.
+import { invoke } from "@tauri-apps/api/core";
 
-let mockNotifications = [
-  {
-    id: "n1",
+// Ersetzt die fruehere Mock-Version (siehe Launcher-Update-TODO, Abschnitt 4,
+// Teil 3) durch echte Calls gegen die neuen app-api/friend-requests-
+// Endpunkte (social_commands.rs -> social.rs -> Laravel). Format ist
+// bewusst 1:1 kompatibel zur alten Mock-API geblieben, daher brauchen
+// NotificationsContext.jsx/NotificationBell.jsx/FriendsList.jsx keine
+// Aenderungen.
+//
+// Der Server kennt nur pending/accepted/declined fuer eine Anfrage, keinen
+// "gelesen"-Zustand (das ist rein ein Launcher-UI-Konzept fuer die Glocke) -
+// welche IDs schon "gesehen" wurden, wird daher lokal in localStorage
+// gemerkt, gleiches Muster wie App.jsx (SEEN_VIDEO_KEY).
+const SEEN_IDS_KEY = "erzmark_seen_notification_ids";
+
+function loadSeenIds() {
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(SEEN_IDS_KEY) ?? "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeenIds(seenIds) {
+  window.localStorage.setItem(SEEN_IDS_KEY, JSON.stringify([...seenIds]));
+}
+
+function toNotification(entry, seenIds) {
+  const id = String(entry.id);
+  return {
+    id,
     type: "friend_request",
-    createdAt: Date.now() - 4 * 60 * 1000,
-    read: false,
+    createdAt: entry.requestedAt ? new Date(entry.requestedAt).getTime() : Date.now(),
+    read: seenIds.has(id),
     title: "Neue Freundschaftsanfrage",
     body: "möchte mit dir befreundet sein.",
-    data: { requesterUuid: "mock-uuid-1", requesterName: "Steelbrand", status: "pending" },
-  },
-  {
-    id: "n2",
-    type: "info",
-    createdAt: Date.now() - 3 * 60 * 60 * 1000,
-    read: false,
-    title: "Boss-Event heute Abend",
-    body: "Um 20:00 Uhr erscheint der Weltboss in Sektor 7 – sei dabei!",
-  },
-];
+    data: {
+      requesterUuid: entry.requesterUuid,
+      requesterName: entry.requesterName,
+      status: entry.status,
+    },
+  };
+}
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+async function loadNotifications(seenIds) {
+  const entries = await invoke("get_friend_requests");
+  return entries.map((e) => toNotification(e, seenIds));
 }
 
 export async function fetchNotifications() {
-  await delay(150);
-  return mockNotifications.map((n) => ({ ...n }));
+  return loadNotifications(loadSeenIds());
 }
 
 export async function markAllNotificationsRead() {
-  await delay(80);
-  mockNotifications = mockNotifications.map((n) => ({ ...n, read: true }));
-  return mockNotifications.map((n) => ({ ...n }));
+  const seenIds = loadSeenIds();
+  const notifications = await loadNotifications(seenIds);
+  notifications.forEach((n) => seenIds.add(n.id));
+  saveSeenIds(seenIds);
+  return notifications.map((n) => ({ ...n, read: true }));
 }
 
 export async function respondToFriendRequest(id, accept) {
-  await delay(200);
-  mockNotifications = mockNotifications.map((n) =>
-    n.id === id && n.type === "friend_request"
-      ? { ...n, data: { ...n.data, status: accept ? "accepted" : "declined" } }
-      : n
-  );
-  return mockNotifications.map((n) => ({ ...n }));
+  await invoke("respond_friend_request", { id: Number(id), accept });
+  return loadNotifications(loadSeenIds());
 }

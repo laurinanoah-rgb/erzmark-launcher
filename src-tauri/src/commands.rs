@@ -149,6 +149,7 @@ pub async fn ensure_fresh_session_internal(state: &AppState) -> anyhow::Result<S
 #[tauri::command]
 pub fn logout(state: State<'_, AppState>) -> Result<(), AuthError> {
     *state.session.lock().unwrap() = None;
+    *state.sanctum_token.lock().unwrap() = None;
     token_store::clear_refresh_token().map_err(AuthError::from)?;
     Ok(())
 }
