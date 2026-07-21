@@ -7,6 +7,7 @@ import {
   resetInstallation,
   saveSettings,
 } from "../api/settings.js";
+import { broadcastSettingsChanged } from "../state/settingsBus.js";
 
 const MEMORY_MIN = 512;
 const MEMORY_MAX = 16384;
@@ -36,6 +37,7 @@ export default function SettingsScreen({ onClose }) {
     setError(null);
     try {
       await saveSettings(settings);
+      broadcastSettingsChanged(settings);
       onClose();
     } catch (err) {
       setError(err?.message ?? String(err));
@@ -126,6 +128,38 @@ export default function SettingsScreen({ onClose }) {
               <p className="erzmark-hint">
                 Wird bei jedem Start automatisch zurückgesetzt. Während einer laufenden Session
                 kurz änderbar, ab dem nächsten Start wieder fix bei 70.
+              </p>
+            </section>
+
+            <section className="erzmark-settings-section">
+              <h3>Benachrichtigungen</h3>
+              <label className="erzmark-settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.notify_friend_requests}
+                  onChange={(e) => setSettings({ ...settings, notify_friend_requests: e.target.checked })}
+                />
+                <span>Freundschaftsanfragen (Glocke im Header)</span>
+              </label>
+              <label className="erzmark-settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={settings.notify_achievements}
+                  onChange={(e) => setSettings({ ...settings, notify_achievements: e.target.checked })}
+                />
+                <span>Neue Erfolge (Lichtschein + Badge)</span>
+              </label>
+              <label className="erzmark-settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={!settings.mute_ui_sounds}
+                  onChange={(e) => setSettings({ ...settings, mute_ui_sounds: !e.target.checked })}
+                />
+                <span>Töne (Erfolge, Buch-Seiten umblättern)</span>
+              </label>
+              <p className="erzmark-hint">
+                Boss-Event-Countdown und Update-Hinweise lassen sich bewusst nicht stummschalten – das sind
+                dauerhafte Status-Anzeigen bzw. ein nötiger Handlungsaufruf, kein optionaler Hinweis.
               </p>
             </section>
 

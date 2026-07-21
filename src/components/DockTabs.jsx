@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { getPerformanceTier } from "../utils/performanceTier.js";
+import { signalTabHover } from "../state/skinMirrorMood.js";
 
 /**
  * Gemeinsame Tab-Chrome für die Dock-Widgets (Freunde/Gilde/Karte links,
@@ -79,6 +80,7 @@ export default function DockTabs({ tabs }) {
             data-tab-id={id}
             className={`erzmark-dock-tab${active === id ? " is-active" : ""}`}
             onClick={() => setActive(id)}
+            onMouseEnter={signalTabHover}
             title={label}
             aria-label={label}
             aria-pressed={active === id}

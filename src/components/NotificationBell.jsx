@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNotifications } from "../state/NotificationsContext.jsx";
 import { getPerformanceTier } from "../utils/performanceTier.js";
+import { getSettings } from "../api/settings.js";
+import { subscribeSettingsChanged } from "../state/settingsBus.js";
 
 function BellIcon() {
   return (
@@ -51,8 +53,19 @@ function formatRelativeTime(ms) {
 export default function NotificationBell() {
   const { notifications, unreadCount, respondFriendRequest, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [notifyEnabled, setNotifyEnabled] = useState(true);
   const wrapRef = useRef(null);
   const tier = useRef(getPerformanceTier()).current;
+
+  // "Freundschaftsanfragen"-Toggle in den Einstellungen (Abschnitt 6) schaltet
+  // nur den proaktiven Hinweis (Leuchten/Klingeln/Badge) ab - offene Anfragen
+  // bleiben beim manuellen Öffnen der Glocke weiterhin sichtbar/aktionierbar.
+  useEffect(() => {
+    getSettings()
+      .then((s) => setNotifyEnabled(s.notify_friend_requests))
+      .catch(() => {});
+    return subscribeSettingsChanged((s) => setNotifyEnabled(s.notify_friend_requests));
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -70,12 +83,13 @@ export default function NotificationBell() {
   }
 
   const sorted = [...notifications].sort((a, b) => b.createdAt - a.createdAt);
+  const showAlert = notifyEnabled && unreadCount > 0;
 
   return (
     <div className="erzmark-bell-wrap" ref={wrapRef}>
       <button
         type="button"
-        className={`erzmark-bell-btn${unreadCount > 0 ? " has-unread" : ""}${tier === "full" ? " is-animated" : ""}`}
+        className={`erzmark-bell-btn${showAlert ? " has-unread" : ""}${showAlert && tier === "full" ? " is-animated" : ""}`}
         onClick={() => setOpen((v) => !v)}
         aria-label={unreadCount > 0 ? `${unreadCount} neue Benachrichtigungen` : "Benachrichtigungen"}
         title="Benachrichtigungen"
@@ -83,7 +97,7 @@ export default function NotificationBell() {
         <span className="erzmark-bell-icon">
           <BellIcon />
         </span>
-        {unreadCount > 0 && <span className="erzmark-bell-badge">{unreadCount}</span>}
+        {showAlert && <span className="erzmark-bell-badge">{unreadCount}</span>}
       </button>
 
       {open && (

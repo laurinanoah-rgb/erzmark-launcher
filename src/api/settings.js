@@ -23,3 +23,9 @@ export async function openLogFile() {
 export async function resetInstallation() {
   return invoke("reset_installation");
 }
+
+/** Echte Diagnose-Infos (Log-Auszug, Launcher-/OS-Version) für den
+ * Bug-Report-Button - siehe bugreport.rs. */
+export async function getBugReportContext() {
+  return invoke("get_bug_report_context");
+}

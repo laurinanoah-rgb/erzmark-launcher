@@ -1,8 +1,11 @@
 mod auth;
+mod bugreport;
+mod bugreport_commands;
 mod commands;
 mod config;
 mod events;
 mod events_commands;
+mod friend_skin;
 mod friends;
 mod friends_commands;
 mod game;
@@ -45,6 +48,7 @@ pub fn run() {
             settings_commands::reset_installation,
             events_commands::get_boss_event,
             friends_commands::get_friends,
+            friends_commands::get_friend_skin_url,
             social_commands::get_friend_requests,
             social_commands::respond_friend_request,
             profiles_commands::get_character_profiles,
@@ -52,6 +56,7 @@ pub fn run() {
             skin_commands::set_skin_url,
             skin_commands::upload_skin_file,
             skin_commands::reset_skin,
+            bugreport_commands::get_bug_report_context,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten der Erzmark-Launcher-Anwendung");

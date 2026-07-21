@@ -2001,11 +2001,120 @@ body {
 /* Hero-Variante im Hauptbildschirm-Hintergrund: kein Panel-Rahmen, soll
    frei im Raum stehen statt in einer Box zu stecken (siehe .erzmark-hero-skin
    in MainScreen.jsx). */
+.erzmark-hero-skin-friends-toggle {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  z-index: 1;
+  opacity: 0.55;
+  font-size: 1rem;
+}
+
+.erzmark-hero-skin-friends-toggle[aria-pressed="true"] {
+  opacity: 1;
+  filter: drop-shadow(0 0 4px rgba(255, 185, 0, 0.6));
+}
+
 .erzmark-hero-skin .erzmark-skin-mirror {
   border: none;
   background: none;
   box-shadow: none;
   cursor: default;
+}
+
+/* Skin Mirror: Wrapper um Canvas/Paperdoll + optionalen Boden-Schatten,
+   Glitch-Sprechblase und Sozialer-Modus-Raum (siehe SkinMirror.jsx). */
+.erzmark-skin-mirror-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.erzmark-skin-mirror-wrap--shadow::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  width: 55%;
+  height: 10%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.45), transparent 75%);
+  filter: blur(2px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.erzmark-skin-mirror--glitch {
+  animation: erzmark-skin-glitch-filter 0.18s steps(2) infinite;
+}
+
+@keyframes erzmark-skin-glitch-filter {
+  0% {
+    filter: hue-rotate(0deg) saturate(1.6) contrast(1.1);
+  }
+  50% {
+    filter: hue-rotate(140deg) saturate(2.2) contrast(1.4) brightness(1.15);
+  }
+  100% {
+    filter: hue-rotate(-90deg) saturate(1.8) contrast(1.2);
+  }
+}
+
+.erzmark-skin-mirror-glitch-quote {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 220px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(10, 12, 16, 0.85);
+  border: 1px solid rgba(255, 60, 60, 0.4);
+  color: rgba(255, 220, 220, 0.92);
+  font-size: 0.72rem;
+  font-style: italic;
+  text-align: center;
+  pointer-events: none;
+  animation: erzmark-glitch-quote-in 0.2s ease-out;
+}
+
+@keyframes erzmark-glitch-quote-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Sozialer Modus: Online-Freunde als kleinere Vorschauen neben dem
+   Hauptspieler, mit gemeinsamem "Boden" (Farbverlauf) als Raum-Andeutung. */
+.erzmark-skin-mirror-room {
+  position: absolute;
+  left: 100%;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-left: 12px;
+  padding: 8px 8px 0;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg, transparent, rgba(255, 185, 0, 0.06));
+  border-bottom: 1px solid rgba(255, 185, 0, 0.2);
+}
+
+.erzmark-skin-mirror-room-friend {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.85;
+}
+
+.erzmark-skin-mirror-room-friend-name {
+  font-size: 0.65rem;
+  color: var(--erzmark-color-text-muted);
+  margin-top: 2px;
 }
 
 .erzmark-skin-url-input {
@@ -2081,4 +2190,608 @@ body {
 .erzmark-update-banner-btn {
   padding: 6px 16px;
   font-size: 13px;
+}
+
+/* ---- Errungenschaften/Statistiken (Launcher-Update-TODO, Abschnitt 3) ---- */
+
+.erzmark-rune-btn {
+  position: relative;
+}
+
+.erzmark-rune-btn-notify .erzmark-rune-btn-icon {
+  border-color: rgba(255, 185, 0, 0.9);
+  box-shadow: 0 0 12px rgba(255, 185, 0, 0.5);
+  animation: erzmark-notify-pulse 1.6s ease-in-out infinite;
+}
+
+.erzmark-rune-btn-badge {
+  position: absolute;
+  top: -2px;
+  right: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--erzmark-color-gold);
+  box-shadow: 0 0 6px rgba(255, 185, 0, 0.8);
+}
+
+@keyframes erzmark-notify-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(255, 185, 0, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(255, 185, 0, 0.7);
+  }
+}
+
+.erzmark-edge-glow-right {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 90px;
+  pointer-events: none;
+  z-index: 40;
+  background: linear-gradient(270deg, rgba(255, 185, 0, 0.16), transparent);
+  animation: erzmark-edge-glow-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes erzmark-edge-glow-pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.erzmark-book-panel {
+  width: 560px;
+}
+
+.erzmark-book-viewport {
+  position: relative;
+  margin: 18px 20px 8px;
+  min-height: 360px;
+}
+
+.erzmark-book-page-content {
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.erzmark-book-curl-shadow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 40%, rgba(0, 0, 0, 0.35));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.erzmark-book-turn-arrow {
+  position: absolute;
+  top: 50%;
+  right: -14px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 185, 0, 0.35);
+  background: var(--erzmark-color-bg-elevated);
+  color: var(--erzmark-color-gold);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.erzmark-book-turn-arrow:hover {
+  transform: translateY(-50%) translateX(3px);
+  border-color: rgba(255, 185, 0, 0.8);
+  box-shadow: 0 0 14px rgba(255, 185, 0, 0.35);
+  animation: erzmark-book-arrow-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes erzmark-book-arrow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(255, 185, 0, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(255, 185, 0, 0.55);
+  }
+}
+
+.erzmark-book-turn-arrow-flipped {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+
+.erzmark-book-page-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding-bottom: 16px;
+}
+
+.erzmark-book-page-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 185, 0, 0.25);
+  transition: background 0.2s ease;
+}
+
+.erzmark-book-page-dots span.is-active {
+  background: var(--erzmark-color-gold);
+}
+
+.erzmark-ach-stats-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 8px 4px 4px;
+}
+
+.erzmark-ach-playtime {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.erzmark-ach-playtime-value {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--erzmark-color-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.erzmark-ach-playtime-label {
+  font-size: 0.75rem;
+  color: var(--erzmark-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.erzmark-ach-rings {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.erzmark-ach-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.erzmark-ach-ring-icon {
+  font-size: 16px;
+  fill: var(--erzmark-color-text);
+}
+
+.erzmark-ach-ring-value {
+  font-size: 11px;
+  fill: var(--erzmark-color-text-muted);
+}
+
+.erzmark-ach-ring-label {
+  font-size: 0.72rem;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-ach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.erzmark-ach-card {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--erzmark-color-panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.erzmark-ach-card.is-locked {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.erzmark-ach-card-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.erzmark-ach-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.erzmark-ach-card-title {
+  font-weight: 600;
+  color: var(--erzmark-color-text);
+}
+
+.erzmark-ach-card-desc {
+  font-size: 0.8rem;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-ach-card-tier {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-ach-card-date,
+.erzmark-ach-card-context,
+.erzmark-ach-card-percent {
+  font-size: 0.72rem;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-ach-card-context {
+  font-style: italic;
+}
+
+/* Tier-Rahmen/Aura */
+.erzmark-ach-tier-bronze.is-unlocked {
+  border-color: rgba(205, 127, 50, 0.5);
+  box-shadow: 0 0 10px rgba(205, 127, 50, 0.12);
+}
+
+.erzmark-ach-tier-silver.is-unlocked {
+  border-color: rgba(200, 210, 220, 0.5);
+  box-shadow: 0 0 10px rgba(200, 210, 220, 0.14);
+}
+
+.erzmark-ach-tier-gold.is-unlocked {
+  border-color: rgba(255, 185, 0, 0.55);
+  box-shadow: 0 0 14px rgba(255, 185, 0, 0.18);
+}
+
+.erzmark-ach-tier-legendary.is-unlocked {
+  border-color: rgba(190, 100, 255, 0.6);
+  box-shadow: 0 0 16px rgba(190, 100, 255, 0.25);
+  animation: erzmark-legendary-aura 2.6s ease-in-out infinite;
+}
+
+@keyframes erzmark-legendary-aura {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(190, 100, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(190, 100, 255, 0.45);
+  }
+}
+
+.erzmark-ach-card.is-cooling {
+  animation: erzmark-cooling-glow 3.2s ease-in-out infinite;
+}
+
+@keyframes erzmark-cooling-glow {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.18);
+  }
+}
+
+/* Frisch-geschmiedet-Effekt: kurzes Aufglühen + Funken beim ersten Ansehen */
+.erzmark-ach-card.is-forging {
+  animation: erzmark-forge-flash 1.4s ease-out;
+}
+
+@keyframes erzmark-forge-flash {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 140, 0, 0);
+    background: var(--erzmark-color-panel);
+  }
+  15% {
+    box-shadow: 0 0 40px rgba(255, 140, 0, 0.75);
+    background: rgba(255, 140, 0, 0.18);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(255, 140, 0, 0);
+    background: var(--erzmark-color-panel);
+  }
+}
+
+.erzmark-ach-forge-sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.erzmark-ach-forge-sparks span {
+  position: absolute;
+  left: calc(50% + (var(--i) - 5) * 8%);
+  bottom: 40%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffb900;
+  box-shadow: 0 0 6px rgba(255, 185, 0, 0.9);
+  animation: erzmark-forge-spark 1.2s ease-out forwards;
+  animation-delay: calc(var(--i) * 0.03s);
+}
+
+@keyframes erzmark-forge-spark {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-46px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* ---- Feedback-Fenster (Launcher-Update-TODO, Abschnitt 6) ---- */
+
+.erzmark-feedback-modal-panel {
+  width: 480px;
+}
+
+.erzmark-feedback-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.erzmark-feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-feedback-field textarea,
+.erzmark-feedback-field select {
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--erzmark-color-text);
+  background: rgba(15, 19, 26, 0.5);
+  border: 1px solid rgba(255, 185, 0, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.erzmark-feedback-screenshot-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.erzmark-feedback-screenshot-thumb {
+  width: 56px;
+  height: 40px;
+  padding: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.erzmark-feedback-screenshot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.erzmark-feedback-screenshot-thumb.is-selected {
+  border-color: var(--erzmark-color-gold);
+  opacity: 1;
+}
+
+.erzmark-feedback-context {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-feedback-context-title {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-feedback-context ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.erzmark-feedback-vote-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.erzmark-feedback-vote-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--erzmark-color-panel);
+}
+
+.erzmark-feedback-vote-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.erzmark-feedback-vote-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.erzmark-feedback-vote-desc {
+  font-size: 0.72rem;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-feedback-vote-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.erzmark-feedback-vote-btn {
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--erzmark-color-text-muted);
+  cursor: pointer;
+}
+
+.erzmark-feedback-vote-btn.is-active {
+  border-color: rgba(255, 185, 0, 0.6);
+  color: var(--erzmark-color-gold);
+  background: rgba(255, 185, 0, 0.1);
+}
+
+.erzmark-feedback-mine {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.erzmark-feedback-mine-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.erzmark-feedback-tag {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-feedback-tag-balance {
+  background: rgba(66, 183, 250, 0.15);
+  color: #7cd2ff;
+}
+
+.erzmark-feedback-tag-bugs {
+  background: rgba(255, 90, 90, 0.15);
+  color: #ff8f8f;
+}
+
+.erzmark-feedback-tag-ideen {
+  background: rgba(0, 188, 125, 0.15);
+  color: #5fe0af;
+}
+
+/* ---- Profil-Screen (Launcher-Update-TODO, Abschnitt 6) ---- */
+
+.erzmark-profile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.erzmark-profile-editor-banner {
+  height: 110px;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0;
+  position: relative;
+}
+
+.erzmark-profile-editor-avatar {
+  transform: translateY(28px);
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.4));
+}
+
+.erzmark-profile-banner-row {
+  display: flex;
+  gap: 8px;
+}
+
+.erzmark-profile-banner-swatch {
+  width: 34px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.erzmark-profile-banner-swatch.is-selected {
+  border-color: var(--erzmark-color-text);
+}
+
+.erzmark-profile-featured-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.erzmark-profile-featured-chip {
+  font-size: 0.78rem;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--erzmark-color-text-muted);
+  cursor: pointer;
+}
+
+.erzmark-profile-featured-chip.is-selected {
+  border-color: rgba(255, 185, 0, 0.6);
+  color: var(--erzmark-color-gold);
+  background: rgba(255, 185, 0, 0.1);
+}
+
+.erzmark-history-power {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 0;
+}
+
+.erzmark-history-sparkline {
+  width: 100%;
+  display: block;
 }

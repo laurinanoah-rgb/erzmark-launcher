@@ -37,40 +37,48 @@ Stand: 2026-07-21. Reine Planungsliste aus `Erzmark_Launcher_Update_Ideensammlun
 
 ---
 
-## 2. Skin Mirror (3D-Skin-Viewer)
+## 2. Skin Mirror (3D-Skin-Viewer) ✅ (21.07.2026)
 
-- [ ] Technische Basis: React Three Fiber, Architektur-Inspiration skinview3d (nicht kopieren)
-- [ ] Idle-Animationen: Atmen, Kopf-Tracking zum Mauszeiger, Tab-Hover-Neugier
-- [ ] Idle-Posen abhängig von Reputationsstufe/Power-Score
-- [ ] Live-Sync mit Ingame-Zustand (Rüstung/Items, temporäre Schadens-/Dreck-Overlays)
-- [ ] Seltener R.U.D.O.L.F.-Glitch (falsche Pose/Textur + Kommentar)
-- [ ] Sozialer Modus: Online-Freunde-Skins im selben 3D-Raum
-- [ ] Interaktionen: Drag zum Drehen, Doppelklick-Emote, Inaktivitäts-Reaktion (hinsetzen/gähnen)
-- [ ] Anbindung an Performance-Stufensystem (Stufe 3 = volles 3D mit Schatten, Stufe 1 = statisches 2D-Bild)
+- [x] Technische Basis: **Entscheidung geändert** (User-Absprache im Chat) – auf dem bereits produktiv laufenden `skinview3d` direkt aufgebaut statt Rewrite auf React Three Fiber, da eine funktionierende Idle-/Emote-Basis (siehe Abschnitt-Historie) schon existierte und ein Parallel-Renderer nur Risiko ohne Mehrwert gewesen wäre.
+- [x] Idle-Animationen: Atmen (durchgehende, sehr dezente Skalierung von Body/Kopf), Kopf-Tracking zum Mauszeiger (fensterweit, geclamped + geglättet, pausiert/überschrieben während Emotes), Tab-Hover-Neugier (kurze Kopfschräglage, ausgelöst über [src/state/skinMirrorMood.js](src/state/skinMirrorMood.js), gefeuert von [src/components/DockTabs.jsx](src/components/DockTabs.jsx) bei `onMouseEnter`) — [src/components/SkinMirror.jsx](src/components/SkinMirror.jsx)
+- [x] Idle-Posen abhängig von **Charakter-Level als Proxy** für Reputationsstufe/Power-Score – ein echtes Reputations-/Power-Score-System existiert im Backend nicht, das MMOCore-Klassenlevel (`profiles.php`) ist der einzige real vorhandene Fortschrittswert. Drei grobe Stufen (timid/normal/confident) beeinflussen Grundhaltung (Schultern, Standbreite, Armamplitude).
+- [ ] **Live-Sync mit Ingame-Zustand (Rüstung/Items, Schadens-/Dreck-Overlays) – bewusst zurückgestellt.** Es gibt aktuell keine Backend-Quelle für Rüstung/Health (`player-status.php`/`network-status.php` liefern nur online/offline). Bräuchte ein neues Server-Plugin + Endpunkt nach dem `ErzmarkSocial`-Vorbild (Abschnitt 4) – eigenes Teilprojekt für eine der nächsten Sessions, keine Fake-Umsetzung ohne echte Daten.
+- [x] Seltener R.U.D.O.L.F.-Glitch: zufällig alle ~15s mit kleiner Wahrscheinlichkeit, kurzer Pose-Jitter + CSS-Hue-Glitch-Filter auf dem Canvas + kryptische Sprechblasen-Zeile.
+- [x] Sozialer Modus: Toggle-Button (👥) über der Hero-Ansicht zeigt bis zu drei online Freunde als kleinere Vorschauen daneben ("Raum" per CSS-Boden/Vignette angedeutet, keine echte gemeinsame WebGL-Szene). Neuer Rust-Command `get_friend_skin_url` löst Freundes-Skins über Mojangs öffentlichen Session-Server auf (kein eigener Login nötig) — [src-tauri/src/friend_skin.rs](src-tauri/src/friend_skin.rs), [src/api/friends.js](src/api/friends.js)
+- [x] Interaktionen: Drag zum Drehen/Zoomen (skinview3d-OrbitControls, war bereits eingebaut), Doppelklick-Emote (erzwingt sofort ein zufälliges Emote statt auf den Zyklus zu warten), Inaktivitäts-Reaktion (nach 40s ganz ohne Maus-/Tastatur-Aktivität: periodisches Gähnen/angedeutetes Ausruhen statt der normalen Emote-Rotation).
+- [x] Anbindung an Performance-Stufensystem: Stufe „reduced" verzichtet komplett auf die WebGL-Szene und zeichnet stattdessen einmalig ein 2D-Canvas-Paperdoll aus der Skin-Textur ([src/utils/skinPaperDoll.js](src/utils/skinPaperDoll.js)); Stufe „full" bekommt zusätzlich einen weichen CSS-Schatten-Blob unter der Figur. Echte Schatten/3-Stufen-System folgen erst mit dem vollen Performance-System aus Abschnitt 1.
 
 ---
 
-## 3. Custom Achievements & Stats
+## 3. Custom Achievements & Stats ✅ (21.07.2026, Frontend/Mock)
+
+Wie beim Freundessystem Teil 1: komplette UI/Interaktion fertig gebaut, aber
+noch mit Mock-API ([src/api/achievements.js](src/api/achievements.js)) im
+Format einer künftigen echten API — es gibt aktuell **kein**
+Achievement-Plugin und **keine** kategorisierten Kampf-/Erkundungs-/
+Handwerks-Stats im Backend (nur Quests/Spielzeit/Münzen/Level aus MMOCore,
+siehe Abschnitt 4). Echte Anbindung (welches Achievement-System, welche
+Skill-Kategorien real verfügbar sind) ist ein eigener nächster Schritt.
 
 ### Grundgerüst
-- [ ] Page-Turn-Interaktion am rechten Fensterrand (Pfeil, Hover-Reaktion: Pulsieren/Kante hebt sich)
-- [ ] Seite 1: Statistiken, Seite 2: Achievements
-- [ ] Echte 3D-Page-Curl-Animation (Stufe 3), einfacher Fade als Fallback (Stufe 1), an Performance-System gekoppelt
+- [x] Page-Turn-Interaktion am rechten Fensterrand (Pfeil, Hover-Reaktion: Pulsieren + Kante hebt sich per Translate) — [src/components/AchievementsScreen.jsx](src/components/AchievementsScreen.jsx)
+- [x] Seite 1: Statistiken, Seite 2: Achievements (Buch-Metapher, zwei Punkte als Seitenindikator)
+- [x] **3D-Page-Curl als GSAP-`rotateY`-Flip mit Perspektive + mitlaufendem Schatten-Overlay** (Stufe „full") statt einer physisch gebogenen Seite — eine echte Papier-Biegung bräuchte eigene 3D-Geometrie/einen Shader, was für eine Buch-Umblätter-Geste nicht verhältnismäßig war. Einfacher Opacity-Crossfade als Fallback (Stufe „reduced"), an [src/utils/performanceTier.js](src/utils/performanceTier.js) gekoppelt.
 
 ### Freischalt-Moment ("Schmiede-Konzept")
-- [ ] Frisch-geschmiedet-Effekt bei erster Ansicht (Glühen + Partikel)
-- [ ] Danach dauerhaftes, sanft pulsierendes Abkühl-Glühen
-- [ ] Dezenter Lichtschein am rechten Fensterrand bei neuem Achievement während laufender Session
+- [x] Frisch-geschmiedet-Effekt bei erster Ansicht (Aufglühen + CSS-Funken-Partikel, `is-forging`-Klasse)
+- [x] Danach dauerhaftes, sanft pulsierendes Abkühl-Glühen für alle innerhalb der letzten 3 Tage freigeschalteten Achievements (`is-cooling`)
+- [x] Dezenter Lichtschein am rechten Fensterrand + Badge/Puls am neuen Fußleisten-Button "Erfolge", sobald während laufender Session ein Achievement freigeschaltet wird (`subscribeNewUnlock` in der Mock-API, simuliert nach 25s) — [src/components/MainScreen.jsx](src/components/MainScreen.jsx)
 
 ### Ergänzende Ideen
-- [ ] Tier-System (Bronze/Silber/Gold/Legendär o. ä.) mit eigenen Rahmen/Partikel-Auren, permanente Aura bei Legendär
-- [ ] Prozentanzeige „X % der Spieler haben das auch erreicht"
-- [ ] Freischaltdatum + Kontext-Satz zum damaligen Weltgeschehen (sofern aus Server-Events ableitbar)
-- [ ] Eigener Sound pro Tier
+- [x] Tier-System (Bronze/Silber/Gold/Legendär) mit eigenen Rahmen/Auren, permanente pulsierende Aura bei Legendär
+- [x] Prozentanzeige „X % der Spieler haben das auch erreicht" (deterministisch aus der Achievement-ID abgeleitet, kein echter Server-Wert)
+- [x] Freischaltdatum + Kontext-Satz zum damaligen Weltgeschehen (Mock-Sätze, z. B. Bezug zu Boss-Events — sofern später aus echten Server-Events ableitbar)
+- [x] Eigener Sound pro Tier — **kein Audio-Asset im Projekt**, stattdessen echte, prozedural erzeugte Web-Audio-Töne (Oszillator-Sweep pro Tier) — [src/utils/achievementSounds.js](src/utils/achievementSounds.js)
 
 ### Stats-Seite
-- [ ] Animierte Zähler (z. B. Spielzeit zählt beim Öffnen hoch) mit Sound
-- [ ] Fortschritts-Ringe pro Kategorie (Kampf/Erkundung/Handwerk) statt Tabellen
+- [x] Animierter Zähler (Spielzeit zählt beim Öffnen hoch) mit Tick-Sound
+- [x] Fortschritts-Ringe pro Kategorie (Kampf/Erkundung/Handwerk) statt Tabellen, SVG-basiert mit animiertem `stroke-dashoffset`
 
 ---
 
@@ -143,20 +151,22 @@ Stand: 2026-07-21. Reine Planungsliste aus `Erzmark_Launcher_Update_Ideensammlun
 
 ---
 
-## 6. Praktische Spieler-Funktionen
+## 6. Praktische Spieler-Funktionen (Profil/Feedback/Personalisierung ✅ 21.07.2026, Frontend/Mock — Rest offen)
+
+**Wichtiger Befund zur "All-in-One-Plugin"-Absprache:** Keiner der heute umgesetzten Punkte brauchte tatsächlich ein neues Minecraft-Server-Plugin. Profil-Editor/Feature-Voting/Vorschlagsbox/Stats-Verlauf sind reine Präferenz-/Meta-Daten (lokal per localStorage bzw. später ein simpler Laravel-Endpunkt, kein Ingame-Hook nötig), Bug-Report sammelt nur lokale Launcher-Diagnosedaten, Benachrichtigungs-Einstellungen sind rein lokal. Die All-in-One-Plugin-Entscheidung greift erst, sobald ein Punkt echte Ingame-Daten braucht (z. B. Ticket-System mit Server-Kontext oder die zurückgestellte Live-Sync aus Abschnitt 2).
 
 ### Profil & Identität
-- [ ] Profil-Editor (Avatar/Banner, Bio, sichtbare Erfolge/Titel)
-- [ ] „Erzmark Pass": zentrale Account-Verwaltung (Java/Bedrock, Discord, App)
+- [x] Profil-Editor (Avatar echt aus dem aktuellen Skin, Banner-Presets, Bio, bis zu 3 vorgestellte Erfolge aus der Achievements-Mock-API) — [src/components/ProfileScreen.jsx](src/components/ProfileScreen.jsx), Persistenz per `localStorage` ([src/api/profileEditor.js](src/api/profileEditor.js))
+- [ ] „Erzmark Pass": zentrale Account-Verwaltung (Java/Bedrock, Discord, App) — **bewusst nicht angefasst**, eigenes großes Umbau-Projekt
 
-### Feedback & Community
-- [ ] Bug-Report-Button mit automatischem Log-/Screenshot-/Systeminfo-Anhang
-- [ ] Feature-Voting (Daumen hoch/runter)
-- [ ] Vorschlagsbox mit Kategorien (Balance, Bugs, Ideen)
+### Feedback & Community ✅ (21.07.2026, Frontend/Mock)
+- [x] Bug-Report-Button mit **echtem** automatischem Log-/Screenshot-/Systeminfo-Anhang (neuer Rust-Command `get_bug_report_context`, siehe [src-tauri/src/bugreport.rs](src-tauri/src/bugreport.rs) + Wiederverwendung von `list_screenshots`) — **nur das Absenden an ein Support-System ist noch Mock**, kein Ticket-System angebunden — [src/components/FeedbackScreen.jsx](src/components/FeedbackScreen.jsx)
+- [x] Feature-Voting (Daumen hoch/runter, Mock-Datensatz mit vier Beispiel-Vorschlägen)
+- [x] Vorschlagsbox mit Kategorien (Balance, Bugs, Ideen), zeigt eigene Einreichungen der laufenden Session — [src/api/feedback.js](src/api/feedback.js)
 
-### Personalisierung & Komfort
-- [ ] Granulare Benachrichtigungs-Einstellungen
-- [ ] Session-Statistiken/Power-Score-Verlauf als Dashboard
+### Personalisierung & Komfort ✅ (21.07.2026)
+- [x] Granulare Benachrichtigungs-Einstellungen — **echt, keine Mock-API**: neue Felder in [src-tauri/src/settings.rs](src-tauri/src/settings.rs) (`notify_friend_requests`, `notify_achievements`, `mute_ui_sounds`), wirken sofort über einen neuen Settings-Pub-Sub ([src/state/settingsBus.js](src/state/settingsBus.js)) auf Glocke/Lichtschein/UI-Sounds. Boss-Event-Countdown und Update-Banner bewusst ohne Toggle (Status-Anzeige bzw. nötiger Handlungsaufruf, kein optionaler Hinweis).
+- [x] Session-Statistiken/Power-Score-Verlauf als Dashboard — simulierter 14-Tage-Spielzeit-Trend (SVG-Sparkline) + Power-Score als **Proxy-Kennzahl** (Level×10 + Erfolge×25 + Spielzeit×2, da kein echtes Power-Score-System existiert) — [src/api/statsHistory.js](src/api/statsHistory.js), zweiter Tab in ProfileScreen.jsx
 
 ### Support & Transparenz
 - [ ] Server-Status-/Roadmap-Tab mit Changelog

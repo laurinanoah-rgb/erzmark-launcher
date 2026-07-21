@@ -22,6 +22,14 @@ pub const MC_PROFILE_URL: &str = "https://api.minecraftservices.com/minecraft/pr
 pub const MC_SKINS_URL: &str = "https://api.minecraftservices.com/minecraft/profile/skins";
 pub const MC_SKINS_ACTIVE_URL: &str = "https://api.minecraftservices.com/minecraft/profile/skins/active";
 
+/// Mojangs öffentlicher Session-Server – liefert Skin/Cape-Texturen zu einer
+/// beliebigen UUID ohne eigenes Auth (nur für die eigene, per Xbox/MS
+/// eingeloggte Session braucht es den Umweg über `MC_PROFILE_URL`). Genutzt
+/// für die Freundes-Skins im "Sozialer Modus" des Skin Mirrors (Launcher-
+/// Update-TODO, Abschnitt 2) – `{uuid}` wird ohne Bindestriche angehängt.
+pub const MOJANG_SESSION_SERVER_PROFILE_URL: &str =
+    "https://sessionserver.mojang.com/session/minecraft/profile";
+
 pub const KEYRING_SERVICE: &str = "de.erzmark.launcher";
 pub const KEYRING_USER: &str = "ms-refresh-token";
 

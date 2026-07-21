@@ -16,6 +16,29 @@ pub struct LauncherSettings {
     /// `game::launch::apply_fov_lock`) – für ein einheitliches Spielerlebnis
     /// auf Erzmark.
     pub lock_fov: bool,
+
+    // Granulare Benachrichtigungs-Einstellungen (Launcher-Update-TODO,
+    // Abschnitt 6) – bewusst nur für Fälle, die einen echten, abschaltbaren
+    // "Benachrichtigungs-Moment" haben (Glocke/Lichtschein/Sound). Boss-Event-
+    // Countdown und Update-Banner sind dauerhafte Status-Anzeigen bzw. ein
+    // nötiger Handlungsaufruf, kein optionaler Hinweis – die würde man durch
+    // Ausblenden eher verwirren als entlasten, deshalb keine Toggles dafür.
+    //
+    // `#[serde(default)]` ist hier wichtig, da bestehende, bereits auf
+    // Nutzer-Rechnern gespeicherte `settings.json`-Dateien diese Felder noch
+    // nicht enthalten – ohne Default würde `load()` bei ihnen fehlschlagen
+    // und (siehe `load()`) still auf alle Standardwerte zurückfallen,
+    // inklusive der bereits gespeicherten Werte oben.
+    #[serde(default = "default_true")]
+    pub notify_friend_requests: bool,
+    #[serde(default = "default_true")]
+    pub notify_achievements: bool,
+    #[serde(default)]
+    pub mute_ui_sounds: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for LauncherSettings {
@@ -24,6 +47,9 @@ impl Default for LauncherSettings {
             memory_min_mb: 1024,
             memory_max_mb: 4096,
             lock_fov: true,
+            notify_friend_requests: true,
+            notify_achievements: true,
+            mute_ui_sounds: false,
         }
     }
 }

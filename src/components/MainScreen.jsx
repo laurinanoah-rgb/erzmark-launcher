@@ -14,8 +14,15 @@ import SocialDock from "./SocialDock.jsx";
 import SettingsScreen from "./SettingsScreen.jsx";
 import BossEventCountdown from "./BossEventCountdown.jsx";
 import SkinChangerScreen from "./SkinChangerScreen.jsx";
+import AchievementsScreen from "./AchievementsScreen.jsx";
+import ProfileScreen from "./ProfileScreen.jsx";
+import FeedbackScreen from "./FeedbackScreen.jsx";
 import SkinMirror from "./SkinMirror.jsx";
 import ActiveCharacterCard from "./ActiveCharacterCard.jsx";
+import { subscribeNewUnlock } from "../api/achievements.js";
+import { getSettings } from "../api/settings.js";
+import { subscribeSettingsChanged } from "../state/settingsBus.js";
+import { setMuted } from "../utils/achievementSounds.js";
 
 // TODO: echte Links eintragen, sobald vorhanden (Discord-Invite, YouTube-Kanal).
 const DISCORD_URL = "https://discord.gg/erzmark";
@@ -107,6 +114,25 @@ function SettingsIcon() {
   );
 }
 
+function ProfileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="12" cy="8.5" r="3.2" />
+      <path d="M5.5 20c0-4 3-6 6.5-6s6.5 2 6.5 6" />
+    </svg>
+  );
+}
+
+function TrophyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+      <path d="M7 5H4v1a4 4 0 0 0 4 4M17 5h3v1a4 4 0 0 1-4 4" />
+      <path d="M12 13v4M9 20h6M9.5 17h5l.5 3H9l.5-3Z" />
+    </svg>
+  );
+}
+
 function DiscordIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor">
@@ -156,6 +182,11 @@ export default function MainScreen({ session, onLoggedOut }) {
   const [showSkinChanger, setShowSkinChanger] = useState(false);
   const [gameRunning, setGameRunning] = useState(false);
   const [heroSkinUrl, setHeroSkinUrl] = useState(null);
+  const [showFriendsInMirror, setShowFriendsInMirror] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [newAchievementGlow, setNewAchievementGlow] = useState(false);
   const [appVersion, setAppVersion] = useState(null);
 
   const phantomLogoRef = useRef(null);
@@ -244,6 +275,32 @@ export default function MainScreen({ session, onLoggedOut }) {
       .catch(() => {});
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // Dezenter Lichtschein/Badge, sobald während der laufenden Session ein
+  // neues Achievement freigeschaltet wird (Launcher-Update-TODO, Abschnitt 3)
+  // - verschwindet wieder, sobald die Errungenschaften-Seite geöffnet wird.
+  // Respektiert die "Neue Erfolge"-Einstellung (Abschnitt 6) sowie das
+  // Stummschalten der UI-Töne - beide werden per Ref gehalten, da die
+  // Einstellungen asynchron nachgeladen werden, das Abo aber sofort steht.
+  const notifyAchievementsRef = useRef(true);
+  useEffect(() => {
+    function applySettings(s) {
+      notifyAchievementsRef.current = s.notify_achievements;
+      setMuted(s.mute_ui_sounds);
+    }
+    getSettings().then(applySettings).catch(() => {
+      // Einstellungen sind rein lokal - sollte praktisch nie fehlschlagen,
+      // fällt sonst auf die (aktivierten) Defaults zurück.
+    });
+    const unsubscribeSettings = subscribeSettingsChanged(applySettings);
+    const unsubscribeUnlock = subscribeNewUnlock(() => {
+      if (notifyAchievementsRef.current) setNewAchievementGlow(true);
+    });
+    return () => {
+      unsubscribeSettings();
+      unsubscribeUnlock();
     };
   }, []);
 
@@ -375,8 +432,17 @@ export default function MainScreen({ session, onLoggedOut }) {
               <span className="erzmark-hero-name">{session?.username}</span>
 
               {heroSkinUrl && (
-                <div className="erzmark-hero-skin" aria-hidden="true">
-                  <SkinMirror skinUrl={heroSkinUrl} width={320} height={480} emotes />
+                <div className="erzmark-hero-skin">
+                  <SkinMirror skinUrl={heroSkinUrl} width={320} height={480} emotes showFriends={showFriendsInMirror} />
+                  <button
+                    type="button"
+                    className="erzmark-link-btn erzmark-hero-skin-friends-toggle"
+                    onClick={() => setShowFriendsInMirror((v) => !v)}
+                    title="Online-Freunde im Skin Mirror anzeigen"
+                    aria-pressed={showFriendsInMirror}
+                  >
+                    👥
+                  </button>
                 </div>
               )}
 
@@ -426,11 +492,36 @@ export default function MainScreen({ session, onLoggedOut }) {
         <div className="erzmark-secondary-spacer" aria-hidden="true" />
 
         <div className="erzmark-secondary-center">
+          <button className="erzmark-rune-btn" onClick={() => setShowProfile(true)}>
+            <span className="erzmark-rune-btn-icon">
+              <ProfileIcon />
+            </span>
+            Profil
+          </button>
           <button className="erzmark-rune-btn" onClick={() => setShowSkinChanger(true)}>
             <span className="erzmark-rune-btn-icon">
               <SkinIcon />
             </span>
             Skin ändern
+          </button>
+          <button
+            className={`erzmark-rune-btn${newAchievementGlow ? " erzmark-rune-btn-notify" : ""}`}
+            onClick={() => {
+              setShowAchievements(true);
+              setNewAchievementGlow(false);
+            }}
+          >
+            <span className="erzmark-rune-btn-icon">
+              <TrophyIcon />
+            </span>
+            Erfolge
+            {newAchievementGlow && <span className="erzmark-rune-btn-badge" aria-hidden="true" />}
+          </button>
+          <button className="erzmark-rune-btn" onClick={() => setShowFeedback(true)}>
+            <span className="erzmark-rune-btn-icon">
+              <FeedbackIcon />
+            </span>
+            Feedback
           </button>
           <button className="erzmark-rune-btn" onClick={() => setShowSettings(true)}>
             <span className="erzmark-rune-btn-icon">
@@ -486,8 +577,20 @@ export default function MainScreen({ session, onLoggedOut }) {
         </button>
       </div>
 
+      {newAchievementGlow && <div className="erzmark-edge-glow-right" aria-hidden="true" />}
+
       {showSettings && <SettingsScreen onClose={() => setShowSettings(false)} />}
       {showSkinChanger && <SkinChangerScreen onClose={() => setShowSkinChanger(false)} />}
+      {showProfile && <ProfileScreen onClose={() => setShowProfile(false)} />}
+      {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} />}
+      {showAchievements && (
+        <AchievementsScreen
+          onClose={() => {
+            setShowAchievements(false);
+            setNewAchievementGlow(false);
+          }}
+        />
+      )}
     </div>
     </NotificationsProvider>
   );

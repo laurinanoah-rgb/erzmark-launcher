@@ -40,3 +40,15 @@ pub async fn get_friends(
         .await
         .map_err(FriendsError::from)
 }
+
+/// Löst die Skin-URL eines Freundes über Mojangs öffentlichen Session-Server
+/// auf (kein eigener Auth-Token nötig, siehe `friend_skin.rs`). Für den
+/// "Sozialer Modus" im Skin Mirror – kein kritischer Pfad, daher `None` statt
+/// Fehler bei unbekannter/nicht ladbarer UUID.
+#[tauri::command]
+pub async fn get_friend_skin_url(uuid: String) -> Result<Option<String>, FriendsError> {
+    let client = reqwest::Client::new();
+    crate::friend_skin::fetch_skin_url(&client, &uuid)
+        .await
+        .map_err(FriendsError::from)
+}
