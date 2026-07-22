@@ -164,8 +164,8 @@ export default function ProfileScreen() {
     try {
       const response =
         field === "photo"
-          ? await uploadProfilePhoto(token, activeProfile.uuid, result.assets[0])
-          : await uploadProfileCover(token, activeProfile.uuid, result.assets[0]);
+          ? await uploadProfilePhoto(token, result.assets[0])
+          : await uploadProfileCover(token, result.assets[0]);
       setActiveProfile((prev) => ({
         ...prev,
         photoUrl: field === "photo" ? response.photoUrl : prev.photoUrl,
@@ -183,10 +183,10 @@ export default function ProfileScreen() {
     setUploadingField(field);
     try {
       if (field === "photo") {
-        await removeProfilePhoto(token, activeProfile.uuid);
+        await removeProfilePhoto(token);
         setActiveProfile((prev) => ({ ...prev, photoUrl: null }));
       } else {
-        await removeProfileCover(token, activeProfile.uuid);
+        await removeProfileCover(token);
         setActiveProfile((prev) => ({ ...prev, coverUrl: null }));
       }
     } catch (err) {

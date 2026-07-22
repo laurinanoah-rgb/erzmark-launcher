@@ -125,6 +125,12 @@ export default function FriendsList({ onOnlineCountChange }) {
       <div className="erzmark-friends-list">
         {friends.map((friend) => (
           <div key={friend.uuid} className="erzmark-friend-row">
+            <img
+              className="erzmark-friend-avatar"
+              src={friend.photoUrl ?? `https://crafatar.com/avatars/${friend.uuid}?size=32&overlay`}
+              alt=""
+              loading="lazy"
+            />
             <span
               className={
                 friend.online

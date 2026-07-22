@@ -1163,6 +1163,15 @@ body {
   border: 1px solid rgba(255, 185, 0, 0.12);
 }
 
+.erzmark-friend-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.25);
+}
+
 .erzmark-friend-dot {
   width: 8px;
   height: 8px;
@@ -2790,6 +2799,27 @@ body {
 .erzmark-profile-editor-avatar {
   transform: translateY(28px);
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.4));
+}
+
+.erzmark-profile-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.erzmark-profile-photo-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 185, 0, 0.2);
+}
+
+.erzmark-profile-photo-upload {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
 }
 
 .erzmark-profile-banner-row {

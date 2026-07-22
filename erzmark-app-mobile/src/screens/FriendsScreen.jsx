@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet, Animated, Easing } from "react-native";
+import { View, Text, Pressable, Image, FlatList, ActivityIndicator, StyleSheet, Animated, Easing } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getFriends, removeFriend } from "../api/friends";
 import { getAccountUuid, getActiveProfileUuid, getStoredToken } from "../api/auth";
@@ -36,6 +36,10 @@ function FriendRow({ friend, index, onRemove, removing }) {
       }}
     >
       <View style={styles.row}>
+        <Image
+          style={styles.avatar}
+          source={{ uri: friend.photoUrl ?? `https://crafatar.com/avatars/${friend.uuid}?size=48&overlay` }}
+        />
         <View style={[styles.dot, friend.online ? styles.dotOnline : styles.dotOffline]} />
         <Text style={styles.name} numberOfLines={1}>{friend.name}</Text>
         {!confirming && (
@@ -212,6 +216,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.goldSoft,
   },
+  avatar: { width: 28, height: 28, borderRadius: 6, backgroundColor: "rgba(0,0,0,0.25)" },
   dot: { width: 9, height: 9, borderRadius: 5 },
   dotOnline: { backgroundColor: "#3ddc84" },
   dotOffline: { backgroundColor: "rgba(255,255,255,0.2)" },

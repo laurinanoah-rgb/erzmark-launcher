@@ -106,3 +106,11 @@ pub const ERZMARK_FRIEND_REQUESTS_URL: &str = "https://erzmark.de/api/app-api/fr
 
 /// Freund entfernen (22.07.2026, Nutzerwunsch).
 pub const ERZMARK_FRIENDS_REMOVE_URL: &str = "https://erzmark.de/api/app-api/friends/remove";
+
+/// Eigene MMOProfiles-Charakterprofile inkl. Account-Profilbild/-Titelbild
+/// (22.07.2026) - im Gegensatz zu ERZMARK_PROFILES_API_URL (read-only, ohne
+/// Auth, ohne Bild) hier über den Sanctum-Token, damit Foto/Cover ausgelesen
+/// werden können (haengen am Account, siehe ProfileController::mine()).
+pub const ERZMARK_PROFILE_MINE_URL: &str = "https://erzmark.de/api/app-api/profiles/mine";
+pub const ERZMARK_PROFILE_PHOTO_URL: &str = "https://erzmark.de/api/app-api/profiles/photo";
+pub const ERZMARK_PROFILE_COVER_URL: &str = "https://erzmark.de/api/app-api/profiles/cover";

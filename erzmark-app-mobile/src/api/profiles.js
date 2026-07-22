@@ -25,16 +25,17 @@ export function reportAppError(token, { message, context, appVersion, platform }
   });
 }
 
-// ---- Profilbild/Titelbild (19.07.2026) ----
+// ---- Profilbild/Titelbild (19.07.2026, am 22.07.2026 korrigiert) ----
 // Getrennt vom automatischen Minecraft-Skin-Avatar (der kommt weiterhin
 // direkt von Crafatar, siehe ProfileScreen.jsx) - hochladbares, eigenes
-// Bild pro Charakterprofil. `profileUuid` bestimmt WELCHES Profil (ein
-// Account kann mehrere MMOProfiles-Charaktere haben), server-seitig gegen
-// den eingeloggten Account geprueft (siehe ProfileController::
-// resolveOwnProfile()).
-function assetToProfileFormData(fieldName, profileUuid, asset) {
+// Bild. Haengt bewusst am eingeloggten ACCOUNT (nicht mehr an der aktiven
+// MMOProfiles-Charakter-UUID) - ein Spieler hat ein Profilbild fuer alle
+// seine Charaktere, waehrend das Freundesystem weiterhin pro
+// MMOProfiles-Charakter getrennt bleibt. Server bestimmt den Account
+// selbst aus dem Sanctum-Token (siehe ProfileController::
+// resolveOwnProfile()), es wird keine UUID mehr mitgeschickt.
+function assetToProfileFormData(fieldName, asset) {
   const formData = new FormData();
-  formData.append("profile_uuid", profileUuid);
   formData.append(fieldName, {
     uri: asset.uri,
     name: asset.fileName ?? `${fieldName}.jpg`,
@@ -43,18 +44,18 @@ function assetToProfileFormData(fieldName, profileUuid, asset) {
   return formData;
 }
 
-export function uploadProfilePhoto(token, profileUuid, asset) {
-  return apiUpload("/profiles/photo", { token, formData: assetToProfileFormData("photo", profileUuid, asset) });
+export function uploadProfilePhoto(token, asset) {
+  return apiUpload("/profiles/photo", { token, formData: assetToProfileFormData("photo", asset) });
 }
 
-export function removeProfilePhoto(token, profileUuid) {
-  return apiRequest("/profiles/photo", { method: "DELETE", token, body: { profile_uuid: profileUuid } });
+export function removeProfilePhoto(token) {
+  return apiRequest("/profiles/photo", { method: "DELETE", token });
 }
 
-export function uploadProfileCover(token, profileUuid, asset) {
-  return apiUpload("/profiles/cover", { token, formData: assetToProfileFormData("cover", profileUuid, asset) });
+export function uploadProfileCover(token, asset) {
+  return apiUpload("/profiles/cover", { token, formData: assetToProfileFormData("cover", asset) });
 }
 
-export function removeProfileCover(token, profileUuid) {
-  return apiRequest("/profiles/cover", { method: "DELETE", token, body: { profile_uuid: profileUuid } });
+export function removeProfileCover(token) {
+  return apiRequest("/profiles/cover", { method: "DELETE", token });
 }

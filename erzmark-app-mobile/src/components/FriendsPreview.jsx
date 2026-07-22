@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, Image, ActivityIndicator, StyleSheet } from "react-native";
 import { getFriends } from "../api/friends";
 import { getAccountUuid, getActiveProfileUuid } from "../api/auth";
 import { colors, radius, spacing } from "../theme";
@@ -78,6 +78,10 @@ export default function FriendsPreview() {
       <View style={{ gap: spacing.xs }}>
         {friends?.map((friend) => (
           <View key={friend.uuid} style={styles.row}>
+            <Image
+              style={styles.avatar}
+              source={{ uri: friend.photoUrl ?? `https://crafatar.com/avatars/${friend.uuid}?size=32&overlay` }}
+            />
             <View style={[styles.dot, friend.online ? styles.dotOnline : styles.dotOffline]} />
             <Text style={styles.name} numberOfLines={1}>{friend.name}</Text>
             {!friend.online && <Text style={styles.lastSeen}>{formatLastSeen(friend.lastSeen)}</Text>}
@@ -110,6 +114,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.goldSoft,
   },
+  avatar: { width: 22, height: 22, borderRadius: 5, backgroundColor: "rgba(0,0,0,0.25)" },
   dot: { width: 8, height: 8, borderRadius: 4 },
   dotOnline: { backgroundColor: "#3ddc84" },
   dotOffline: { backgroundColor: "rgba(255,255,255,0.2)" },

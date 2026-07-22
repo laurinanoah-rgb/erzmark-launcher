@@ -17,6 +17,11 @@ pub struct FriendEntry {
     pub online: bool,
     #[serde(rename = "lastSeen")]
     pub last_seen: i64,
+    /// Account-Profilbild des Freundes (22.07.2026), sofern hochgeladen -
+    /// haengt am echten Account, nicht am aktiven MMOProfiles-Charakter,
+    /// siehe friends.php und ProfileController::resolveOwnProfile().
+    #[serde(rename = "photoUrl")]
+    pub photo_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

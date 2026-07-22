@@ -6,6 +6,7 @@ import { getProfile, saveProfile, BANNER_PRESETS } from "../api/profileEditor.js
 import { getAchievements } from "../api/achievements.js";
 import { getCharacterProfiles } from "../api/profiles.js";
 import { getStatsHistory } from "../api/statsHistory.js";
+import { getProfileMedia, uploadProfilePhoto, removeProfilePhoto } from "../api/profileMedia.js";
 
 function EditorIcon() {
   return (
@@ -32,6 +33,9 @@ function ProfileEditorTab() {
   const [profile, setProfile] = useState(null);
   const [achievements, setAchievements] = useState([]);
   const [saved, setSaved] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState(null);
 
   useEffect(() => {
     getCurrentSkinUrl().then(setSkinUrl).catch(() => {});
@@ -39,7 +43,39 @@ function ProfileEditorTab() {
     getAchievements()
       .then((list) => setAchievements(list.filter((a) => a.unlocked)))
       .catch(() => setAchievements([]));
+    getProfileMedia()
+      .then((media) => setPhotoUrl(media.photoUrl))
+      .catch(() => {});
   }, []);
+
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoError(null);
+    setPhotoBusy(true);
+    try {
+      const result = await uploadProfilePhoto(file);
+      setPhotoUrl(result ?? null);
+    } catch (err) {
+      setPhotoError(err?.message ?? String(err));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function handlePhotoRemove() {
+    setPhotoError(null);
+    setPhotoBusy(true);
+    try {
+      await removeProfilePhoto();
+      setPhotoUrl(null);
+    } catch (err) {
+      setPhotoError(err?.message ?? String(err));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   function toggleFeatured(id) {
     setSaved(false);
@@ -70,6 +106,31 @@ function ProfileEditorTab() {
             <SkinMirror skinUrl={skinUrl} width={72} height={94} />
           </div>
         )}
+      </div>
+
+      <div className="erzmark-feedback-field">
+        <span>Profilbild</span>
+        <p className="erzmark-hint">
+          Eigenes Bild, das Freunde in ihrer Freundesliste sehen (getrennt vom Minecraft-Skin) – gilt für deinen
+          Account, unabhängig davon, welchen Charakter du gerade spielst.
+        </p>
+        <div className="erzmark-profile-photo-row">
+          <img
+            className="erzmark-profile-photo-preview"
+            src={photoUrl ?? "https://crafatar.com/avatars/steve?size=64&overlay"}
+            alt=""
+          />
+          <label className="erzmark-btn-primary-small erzmark-profile-photo-upload">
+            {photoBusy ? "…" : "Bild wählen"}
+            <input type="file" accept="image/png,image/jpeg" onChange={handlePhotoChange} disabled={photoBusy} hidden />
+          </label>
+          {photoUrl && (
+            <button type="button" className="erzmark-link-btn" onClick={handlePhotoRemove} disabled={photoBusy}>
+              Entfernen
+            </button>
+          )}
+        </div>
+        {photoError && <p className="erzmark-error">{photoError}</p>}
       </div>
 
       <div className="erzmark-feedback-field">

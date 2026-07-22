@@ -4,6 +4,7 @@
 //! `ensure_sanctum_token` weiter unten.
 
 use anyhow::{anyhow, Context, Result};
+use reqwest::multipart;
 use serde::{Deserialize, Serialize};
 
 use crate::config;
@@ -145,5 +146,142 @@ pub async fn remove_friend(client: &reqwest::Client, sanctum_token: &str, friend
         );
     }
 
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+struct ProfileMediaEntry {
+    #[serde(rename = "photoUrl")]
+    photo_url: Option<String>,
+    #[serde(rename = "coverUrl")]
+    cover_url: Option<String>,
+}
+
+/// Aktuelles Account-Profilbild/-Titelbild (22.07.2026) - alle Einträge der
+/// `mine()`-Antwort tragen inzwischen dasselbe Bild (haengt am Account, nicht
+/// am Charakterprofil), deshalb reicht der erste Eintrag.
+pub async fn fetch_profile_media(client: &reqwest::Client, sanctum_token: &str) -> Result<(Option<String>, Option<String>)> {
+    let resp = client
+        .get(config::ERZMARK_PROFILE_MINE_URL)
+        .bearer_auth(sanctum_token)
+        .send()
+        .await
+        .context("Profil nicht erreichbar (Netzwerk?)")?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!("Profil-Abruf fehlgeschlagen ({})", resp.status());
+    }
+
+    let entries: Vec<ProfileMediaEntry> = resp.json().await.context("Ungültige Antwort beim Profil-Abruf")?;
+    match entries.into_iter().next() {
+        Some(entry) => Ok((entry.photo_url, entry.cover_url)),
+        None => Ok((None, None)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct PhotoUploadResp {
+    #[serde(rename = "photoUrl")]
+    photo_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CoverUploadResp {
+    #[serde(rename = "coverUrl")]
+    cover_url: Option<String>,
+}
+
+/// Profilbild hochladen (22.07.2026) - haengt am Account (Sanctum-Token),
+/// nicht am aktiven MMOProfiles-Charakter, siehe ProfileController::
+/// resolveOwnProfile() auf dem Server.
+pub async fn upload_profile_photo(
+    client: &reqwest::Client,
+    sanctum_token: &str,
+    file_bytes: Vec<u8>,
+    file_name: &str,
+) -> Result<Option<String>> {
+    let part = multipart::Part::bytes(file_bytes)
+        .file_name(file_name.to_string())
+        .mime_str("image/jpeg")
+        .context("Ungültiger Dateityp")?;
+    let form = multipart::Form::new().part("photo", part);
+
+    let resp = client
+        .post(config::ERZMARK_PROFILE_PHOTO_URL)
+        .bearer_auth(sanctum_token)
+        .multipart(form)
+        .send()
+        .await
+        .context("Profilbild-Upload fehlgeschlagen (Netzwerk?)")?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!(
+            "Profilbild-Upload fehlgeschlagen ({}): {}",
+            resp.status(),
+            resp.text().await.unwrap_or_default()
+        );
+    }
+
+    let parsed: PhotoUploadResp = resp.json().await.context("Ungültige Antwort beim Profilbild-Upload")?;
+    Ok(parsed.photo_url)
+}
+
+pub async fn remove_profile_photo(client: &reqwest::Client, sanctum_token: &str) -> Result<()> {
+    let resp = client
+        .delete(config::ERZMARK_PROFILE_PHOTO_URL)
+        .bearer_auth(sanctum_token)
+        .send()
+        .await
+        .context("Profilbild entfernen fehlgeschlagen (Netzwerk?)")?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!("Profilbild entfernen fehlgeschlagen ({})", resp.status());
+    }
+    Ok(())
+}
+
+pub async fn upload_profile_cover(
+    client: &reqwest::Client,
+    sanctum_token: &str,
+    file_bytes: Vec<u8>,
+    file_name: &str,
+) -> Result<Option<String>> {
+    let part = multipart::Part::bytes(file_bytes)
+        .file_name(file_name.to_string())
+        .mime_str("image/jpeg")
+        .context("Ungültiger Dateityp")?;
+    let form = multipart::Form::new().part("cover", part);
+
+    let resp = client
+        .post(config::ERZMARK_PROFILE_COVER_URL)
+        .bearer_auth(sanctum_token)
+        .multipart(form)
+        .send()
+        .await
+        .context("Titelbild-Upload fehlgeschlagen (Netzwerk?)")?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!(
+            "Titelbild-Upload fehlgeschlagen ({}): {}",
+            resp.status(),
+            resp.text().await.unwrap_or_default()
+        );
+    }
+
+    let parsed: CoverUploadResp = resp.json().await.context("Ungültige Antwort beim Titelbild-Upload")?;
+    Ok(parsed.cover_url)
+}
+
+pub async fn remove_profile_cover(client: &reqwest::Client, sanctum_token: &str) -> Result<()> {
+    let resp = client
+        .delete(config::ERZMARK_PROFILE_COVER_URL)
+        .bearer_auth(sanctum_token)
+        .send()
+        .await
+        .context("Titelbild entfernen fehlgeschlagen (Netzwerk?)")?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!("Titelbild entfernen fehlgeschlagen ({})", resp.status());
+    }
     Ok(())
 }
