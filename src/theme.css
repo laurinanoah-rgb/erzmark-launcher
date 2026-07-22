@@ -1197,6 +1197,83 @@ body {
   white-space: nowrap;
 }
 
+.erzmark-friend-name-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.erzmark-friend-name-btn:hover {
+  text-decoration: underline;
+  color: var(--erzmark-color-gold);
+}
+
+.erzmark-friend-popup-panel {
+  width: 340px;
+}
+
+.erzmark-friend-popup-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.erzmark-friend-popup-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 185, 0, 0.25);
+}
+
+.erzmark-friend-popup-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.erzmark-friend-popup-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--erzmark-color-text);
+}
+
+.erzmark-friend-popup-status {
+  font-size: 12px;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-friend-popup-status.is-online {
+  color: #3ddc84;
+}
+
+.erzmark-friend-popup-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.erzmark-friend-popup-remove {
+  background: none;
+  border: 1px solid rgba(239, 67, 67, 0.4);
+  color: var(--erzmark-color-danger);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.erzmark-friend-popup-remove:hover {
+  background: rgba(239, 67, 67, 0.15);
+}
+
 .erzmark-friend-lastseen {
   font-size: 10px;
   color: var(--erzmark-color-text-muted);

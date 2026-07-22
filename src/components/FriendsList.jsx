@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getFriends, removeFriend } from "../api/friends.js";
 import { useNotifications } from "../state/NotificationsContext.jsx";
+import FriendProfilePopup from "./FriendProfilePopup.jsx";
 
 // Online-Status kann sich jederzeit ändern -> regelmäßig neu laden, während
 // der Launcher offen bleibt.
@@ -30,6 +31,7 @@ export default function FriendsList({ onOnlineCountChange }) {
   const [error, setError] = useState(null);
   const [confirmingUuid, setConfirmingUuid] = useState(null);
   const [removingUuid, setRemovingUuid] = useState(null);
+  const [openProfileUuid, setOpenProfileUuid] = useState(null);
   const timerRef = useRef(null);
   // Server-seitig wirkt "Entfernen" asynchron (live falls online, sonst
   // sobald offline, siehe removeFriend()) - bis MMOCore das tatsächlich
@@ -68,6 +70,7 @@ export default function FriendsList({ onOnlineCountChange }) {
       pendingRemovalsRef.current.add(uuid);
       setFriends((prev) => prev.filter((f) => f.uuid !== uuid));
       setConfirmingUuid(null);
+      setOpenProfileUuid(null);
     } catch (err) {
       setError(err?.message ?? String(err));
     } finally {
@@ -76,6 +79,7 @@ export default function FriendsList({ onOnlineCountChange }) {
   }
 
   const onlineCount = friends.filter((f) => f.online).length;
+  const openProfile = friends.find((f) => f.uuid === openProfileUuid) ?? null;
 
   return (
     <div className="erzmark-friends">
@@ -138,7 +142,14 @@ export default function FriendsList({ onOnlineCountChange }) {
                   : "erzmark-friend-dot erzmark-friend-dot-offline"
               }
             />
-            <span className="erzmark-friend-name">{friend.name}</span>
+            <button
+              type="button"
+              className="erzmark-friend-name erzmark-friend-name-btn"
+              onClick={() => setOpenProfileUuid(friend.uuid)}
+              title={`${friend.name} - Profil anzeigen`}
+            >
+              {friend.name}
+            </button>
             {!friend.online && (
               <span className="erzmark-friend-lastseen">{formatLastSeen(friend.lastSeen)}</span>
             )}
@@ -176,6 +187,15 @@ export default function FriendsList({ onOnlineCountChange }) {
           </div>
         ))}
       </div>
+
+      {openProfile && (
+        <FriendProfilePopup
+          friend={openProfile}
+          onClose={() => setOpenProfileUuid(null)}
+          onRemove={handleRemove}
+          removing={removingUuid === openProfile.uuid}
+        />
+      )}
     </div>
   );
 }

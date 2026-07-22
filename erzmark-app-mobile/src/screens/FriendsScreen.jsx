@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { getFriends, removeFriend } from "../api/friends";
 import { getAccountUuid, getActiveProfileUuid, getStoredToken } from "../api/auth";
 import { useNotifications } from "../state/NotificationsContext";
+import FriendProfileModal from "../components/FriendProfileModal";
 import { colors, radius, spacing } from "../theme";
 
 // Freunde sind pro MMOProfiles-Charakter getrennt gespeichert (siehe
@@ -13,7 +14,7 @@ import { colors, radius, spacing } from "../theme";
 const AUTO_REFRESH_MS = 60 * 1000;
 
 /** Eine Freundeszeile, fadet/rutscht gestaffelt (per `index`) beim ersten Laden ein. */
-function FriendRow({ friend, index, onRemove, removing }) {
+function FriendRow({ friend, index, onRemove, removing, onOpenProfile }) {
   const entrance = useRef(new Animated.Value(0)).current;
   const [confirming, setConfirming] = useState(false);
 
@@ -41,7 +42,9 @@ function FriendRow({ friend, index, onRemove, removing }) {
           source={{ uri: friend.photoUrl ?? `https://crafatar.com/avatars/${friend.uuid}?size=48&overlay` }}
         />
         <View style={[styles.dot, friend.online ? styles.dotOnline : styles.dotOffline]} />
-        <Text style={styles.name} numberOfLines={1}>{friend.name}</Text>
+        <Pressable style={styles.nameBtn} onPress={() => onOpenProfile(friend)} hitSlop={4}>
+          <Text style={styles.name} numberOfLines={1}>{friend.name}</Text>
+        </Pressable>
         {!confirming && (
           <Text style={styles.status}>{friend.online ? "Online" : formatLastSeen(friend.lastSeen)}</Text>
         )}
@@ -81,6 +84,7 @@ export default function FriendsScreen() {
   const [friends, setFriends] = useState(undefined);
   const [error, setError] = useState(null);
   const [removingUuid, setRemovingUuid] = useState(null);
+  const [openProfileFriend, setOpenProfileFriend] = useState(null);
   const { friendRequests, respondFriendRequest } = useNotifications();
   // Server-seitig wirkt "Entfernen" asynchron (live falls online, sonst
   // sobald offline) - bis MMOCore das uebernommen hat, lokal ausblenden,
@@ -127,6 +131,7 @@ export default function FriendsScreen() {
       await removeFriend(token, uuid);
       pendingRemovalsRef.current.add(uuid);
       setFriends((prev) => (prev ?? []).filter((f) => f.uuid !== uuid));
+      setOpenProfileFriend(null);
     } catch (err) {
       setError(err?.message ?? String(err));
     } finally {
@@ -177,8 +182,21 @@ export default function FriendsScreen() {
         keyExtractor={(item) => item.uuid}
         contentContainerStyle={styles.listContent}
         renderItem={({ item, index }) => (
-          <FriendRow friend={item} index={index} onRemove={handleRemove} removing={removingUuid === item.uuid} />
+          <FriendRow
+            friend={item}
+            index={index}
+            onRemove={handleRemove}
+            removing={removingUuid === item.uuid}
+            onOpenProfile={setOpenProfileFriend}
+          />
         )}
+      />
+
+      <FriendProfileModal
+        friend={openProfileFriend}
+        onClose={() => setOpenProfileFriend(null)}
+        onRemove={handleRemove}
+        removing={removingUuid === openProfileFriend?.uuid}
       />
     </SafeAreaView>
   );
@@ -220,7 +238,8 @@ const styles = StyleSheet.create({
   dot: { width: 9, height: 9, borderRadius: 5 },
   dotOnline: { backgroundColor: "#3ddc84" },
   dotOffline: { backgroundColor: "rgba(255,255,255,0.2)" },
-  name: { flex: 1, fontSize: 14, fontWeight: "700", color: colors.text },
+  nameBtn: { flex: 1, minWidth: 0 },
+  name: { fontSize: 14, fontWeight: "700", color: colors.text },
   status: { fontSize: 12, color: colors.textMuted },
   removeBtn: { fontSize: 13, color: colors.textMuted, paddingHorizontal: 4 },
   confirmGroup: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
