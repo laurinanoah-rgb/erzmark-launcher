@@ -15,6 +15,7 @@ import ProfileScreen from "../screens/ProfileScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import SplashScreen from "../screens/SplashScreen";
 import TeamScreen from "../screens/TeamScreen";
+import { NotificationsProvider } from "../state/NotificationsContext";
 
 import { checkForAppUpdate } from "../api/updateCheck";
 import { getMyProfiles } from "../api/profiles";
@@ -46,6 +47,7 @@ const TAB_ICONS = {
 
 function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, isStaff }) {
   return (
+    <NotificationsProvider>
     <Tabs.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -71,6 +73,7 @@ function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, is
         )}
       </Tabs.Screen>
     </Tabs.Navigator>
+    </NotificationsProvider>
   );
 }
 

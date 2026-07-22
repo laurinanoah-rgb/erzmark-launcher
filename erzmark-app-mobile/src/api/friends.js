@@ -1,3 +1,5 @@
+import { apiRequest } from "./client";
+
 // Freundesliste (MMOCore), gelesen über dieselbe öffentliche, read-only
 // PHP-API wie der Desktop-Launcher (siehe src-tauri/src/friends.rs im
 // Projekt-Root und ERZMARK_FRIENDS_API_URL in src-tauri/src/config.rs).
@@ -22,4 +24,12 @@ export async function getFriends(accountUuid) {
   }
   const data = await response.json();
   return data?.friends ?? [];
+}
+
+// Freund entfernen (22.07.2026, Nutzerwunsch) - wirkt asynchron: live ingame,
+// falls einer von beiden gerade online ist (ErzmarkSocial-Plugin), sonst
+// sobald offline (Laravel-Scheduler). Gleicher Endpunkt wie im Desktop-
+// Launcher (siehe FriendRequestController::remove auf dem Server).
+export function removeFriend(token, uuid) {
+  return apiRequest("/friends/remove", { method: "POST", token, body: { uuid } });
 }

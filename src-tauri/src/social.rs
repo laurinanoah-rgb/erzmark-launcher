@@ -123,3 +123,27 @@ pub async fn respond_friend_request(
         .await
         .context("Ungültige Antwort beim Beantworten der Freundschaftsanfrage")
 }
+
+/// Freund entfernen (22.07.2026) – legt serverseitig eine Entfernung an, die
+/// asynchron wirksam wird (live über das ErzmarkSocial-Plugin, falls einer
+/// von beiden gerade online ist, sonst verzögert über den Laravel-Scheduler
+/// sobald offline – siehe FriendRequestController::remove auf dem Server).
+pub async fn remove_friend(client: &reqwest::Client, sanctum_token: &str, friend_uuid: &str) -> Result<()> {
+    let resp = client
+        .post(config::ERZMARK_FRIENDS_REMOVE_URL)
+        .bearer_auth(sanctum_token)
+        .json(&serde_json::json!({ "uuid": friend_uuid }))
+        .send()
+        .await
+        .context("Freund entfernen fehlgeschlagen (Netzwerk?)")?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!(
+            "Freund entfernen fehlgeschlagen ({}): {}",
+            resp.status(),
+            resp.text().await.unwrap_or_default()
+        );
+    }
+
+    Ok(())
+}

@@ -51,6 +51,7 @@ pub fn run() {
             friends_commands::get_friend_skin_url,
             social_commands::get_friend_requests,
             social_commands::respond_friend_request,
+            social_commands::remove_friend,
             profiles_commands::get_character_profiles,
             skin_commands::get_current_skin_url,
             skin_commands::set_skin_url,

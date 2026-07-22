@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, Animated, Easing } from "react-native";
+import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet, Animated, Easing } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getFriends } from "../api/friends";
-import { getAccountUuid, getActiveProfileUuid } from "../api/auth";
+import { getFriends, removeFriend } from "../api/friends";
+import { getAccountUuid, getActiveProfileUuid, getStoredToken } from "../api/auth";
+import { useNotifications } from "../state/NotificationsContext";
 import { colors, radius, spacing } from "../theme";
 
 // Freunde sind pro MMOProfiles-Charakter getrennt gespeichert (siehe
@@ -12,8 +13,9 @@ import { colors, radius, spacing } from "../theme";
 const AUTO_REFRESH_MS = 60 * 1000;
 
 /** Eine Freundeszeile, fadet/rutscht gestaffelt (per `index`) beim ersten Laden ein. */
-function FriendRow({ friend, index }) {
+function FriendRow({ friend, index, onRemove, removing }) {
   const entrance = useRef(new Animated.Value(0)).current;
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     Animated.timing(entrance, {
@@ -36,9 +38,23 @@ function FriendRow({ friend, index }) {
       <View style={styles.row}>
         <View style={[styles.dot, friend.online ? styles.dotOnline : styles.dotOffline]} />
         <Text style={styles.name} numberOfLines={1}>{friend.name}</Text>
-        <Text style={styles.status}>
-          {friend.online ? "Online" : formatLastSeen(friend.lastSeen)}
-        </Text>
+        {!confirming && (
+          <Text style={styles.status}>{friend.online ? "Online" : formatLastSeen(friend.lastSeen)}</Text>
+        )}
+        {confirming ? (
+          <View style={styles.confirmGroup}>
+            <Pressable onPress={() => onRemove(friend.uuid)} disabled={removing} hitSlop={6}>
+              <Text style={styles.confirmBtn}>{removing ? "…" : "Wirklich?"}</Text>
+            </Pressable>
+            <Pressable onPress={() => setConfirming(false)} disabled={removing} hitSlop={6}>
+              <Text style={styles.confirmCancel}>Abbrechen</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable onPress={() => setConfirming(true)} hitSlop={8}>
+            <Text style={styles.removeBtn}>✕</Text>
+          </Pressable>
+        )}
       </View>
     </Animated.View>
   );
@@ -60,6 +76,12 @@ function formatLastSeen(unixSeconds) {
 export default function FriendsScreen() {
   const [friends, setFriends] = useState(undefined);
   const [error, setError] = useState(null);
+  const [removingUuid, setRemovingUuid] = useState(null);
+  const { friendRequests, respondFriendRequest } = useNotifications();
+  // Server-seitig wirkt "Entfernen" asynchron (live falls online, sonst
+  // sobald offline) - bis MMOCore das uebernommen hat, lokal ausblenden,
+  // gleiches Muster wie im Desktop-Launcher (FriendsList.jsx).
+  const pendingRemovalsRef = useRef(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +91,8 @@ export default function FriendsScreen() {
       getFriends(uuid)
         .then((result) => {
           if (cancelled) return;
-          const sorted = [...result].sort((a, b) => Number(b.online) - Number(a.online));
+          const visible = result.filter((f) => !pendingRemovalsRef.current.has(f.uuid));
+          const sorted = [...visible].sort((a, b) => Number(b.online) - Number(a.online));
           setFriends(sorted);
           setError(null);
         })
@@ -93,6 +116,20 @@ export default function FriendsScreen() {
     };
   }, []);
 
+  async function handleRemove(uuid) {
+    setRemovingUuid(uuid);
+    try {
+      const token = await getStoredToken();
+      await removeFriend(token, uuid);
+      pendingRemovalsRef.current.add(uuid);
+      setFriends((prev) => (prev ?? []).filter((f) => f.uuid !== uuid));
+    } catch (err) {
+      setError(err?.message ?? String(err));
+    } finally {
+      setRemovingUuid(null);
+    }
+  }
+
   const onlineCount = friends?.filter((f) => f.online).length ?? 0;
 
   return (
@@ -104,9 +141,30 @@ export default function FriendsScreen() {
         )}
       </View>
 
+      {friendRequests.length > 0 && (
+        <View style={styles.requestList}>
+          {friendRequests.map((req) => (
+            <View key={req.id} style={styles.requestCard}>
+              <Text style={styles.requestText}>
+                <Text style={styles.requestStrong}>{req.data.requesterName}</Text> möchte mit dir befreundet sein.
+                Akzeptieren?
+              </Text>
+              <View style={styles.requestActions}>
+                <Text style={styles.requestAccept} onPress={() => respondFriendRequest(req.id, true)}>
+                  Annehmen
+                </Text>
+                <Text style={styles.requestDecline} onPress={() => respondFriendRequest(req.id, false)}>
+                  Ablehnen
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
       {friends === undefined && <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.lg }} />}
       {error && <Text style={styles.error}>{error}</Text>}
-      {friends && friends.length === 0 && !error && (
+      {friends && friends.length === 0 && !error && friendRequests.length === 0 && (
         <Text style={styles.empty}>Noch keine Freunde – füge welche im Spiel mit /friends hinzu.</Text>
       )}
 
@@ -114,7 +172,9 @@ export default function FriendsScreen() {
         data={friends ?? []}
         keyExtractor={(item) => item.uuid}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item, index }) => <FriendRow friend={item} index={index} />}
+        renderItem={({ item, index }) => (
+          <FriendRow friend={item} index={index} onRemove={handleRemove} removing={removingUuid === item.uuid} />
+        )}
       />
     </SafeAreaView>
   );
@@ -127,6 +187,19 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
   error: { color: colors.danger, marginHorizontal: spacing.lg, marginTop: spacing.sm },
   empty: { color: colors.textMuted, marginHorizontal: spacing.lg, marginTop: spacing.sm },
+  requestList: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm },
+  requestCard: {
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: "rgba(66, 183, 250, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(66, 183, 250, 0.3)",
+  },
+  requestText: { fontSize: 13, color: colors.text, lineHeight: 18, marginBottom: spacing.sm },
+  requestStrong: { fontWeight: "800" },
+  requestActions: { flexDirection: "row", gap: spacing.lg },
+  requestAccept: { fontSize: 13, fontWeight: "800", color: colors.gold },
+  requestDecline: { fontSize: 13, color: colors.textMuted, textDecorationLine: "underline" },
   listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.xs },
   row: {
     flexDirection: "row",
@@ -144,4 +217,19 @@ const styles = StyleSheet.create({
   dotOffline: { backgroundColor: "rgba(255,255,255,0.2)" },
   name: { flex: 1, fontSize: 14, fontWeight: "700", color: colors.text },
   status: { fontSize: 12, color: colors.textMuted },
+  removeBtn: { fontSize: 13, color: colors.textMuted, paddingHorizontal: 4 },
+  confirmGroup: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  confirmBtn: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.danger,
+    borderWidth: 1,
+    borderColor: "rgba(239,67,67,0.5)",
+    backgroundColor: "rgba(239,67,67,0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    overflow: "hidden",
+  },
+  confirmCancel: { fontSize: 11, color: colors.textMuted, textDecorationLine: "underline" },
 });

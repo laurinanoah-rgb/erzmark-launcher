@@ -1,5 +1,6 @@
 import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 import { colors, radius, spacing } from "../theme";
+import NotificationBell from "./NotificationBell";
 
 /**
  * Geschmiedete Kopfleiste ganz oben auf dem HomeScreen - Pendant zum
@@ -18,11 +19,14 @@ export default function HomeHeader({ accountName, onLogout }) {
         <Text style={styles.wordmark}>ERZMARK</Text>
       </View>
 
-      <View style={styles.account}>
-        {accountName && <Text style={styles.accountName}>{accountName}</Text>}
-        <Pressable onPress={onLogout} hitSlop={8}>
-          <Text style={styles.logout}>Abmelden</Text>
-        </Pressable>
+      <View style={styles.right}>
+        <NotificationBell />
+        <View style={styles.account}>
+          {accountName && <Text style={styles.accountName}>{accountName}</Text>}
+          <Pressable onPress={onLogout} hitSlop={8}>
+            <Text style={styles.logout}>Abmelden</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -64,6 +68,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     color: colors.gold,
   },
+  right: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   account: { alignItems: "flex-end", gap: 2 },
   accountName: {
     fontSize: 12,

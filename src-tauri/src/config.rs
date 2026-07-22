@@ -103,3 +103,6 @@ pub const ERZMARK_APP_API_AUTH_URL: &str = "https://erzmark.de/api/app-api/auth/
 
 /// Offene Freundschaftsanfragen (Launcher-Update-TODO, Abschnitt 4, Teil 3).
 pub const ERZMARK_FRIEND_REQUESTS_URL: &str = "https://erzmark.de/api/app-api/friend-requests";
+
+/// Freund entfernen (22.07.2026, Nutzerwunsch).
+pub const ERZMARK_FRIENDS_REMOVE_URL: &str = "https://erzmark.de/api/app-api/friends/remove";

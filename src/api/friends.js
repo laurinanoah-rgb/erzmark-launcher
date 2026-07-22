@@ -18,3 +18,12 @@ export async function getFriends() {
 export async function getFriendSkinUrl(uuid) {
   return invoke("get_friend_skin_url", { uuid });
 }
+
+/**
+ * Entfernt einen Freund (22.07.2026, Nutzerwunsch) - wirkt asynchron: live
+ * ingame, falls einer von beiden gerade online ist (ErzmarkSocial-Plugin),
+ * sonst sobald offline (Laravel-Scheduler), siehe social.rs::remove_friend.
+ */
+export async function removeFriend(uuid) {
+  return invoke("remove_friend", { uuid });
+}
