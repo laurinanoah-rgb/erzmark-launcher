@@ -504,19 +504,6 @@ export default function MainScreen({ session, onLoggedOut }) {
             </span>
             Skin ändern
           </button>
-          <button
-            className={`erzmark-rune-btn${newAchievementGlow ? " erzmark-rune-btn-notify" : ""}`}
-            onClick={() => {
-              setShowAchievements(true);
-              setNewAchievementGlow(false);
-            }}
-          >
-            <span className="erzmark-rune-btn-icon">
-              <TrophyIcon />
-            </span>
-            Erfolge
-            {newAchievementGlow && <span className="erzmark-rune-btn-badge" aria-hidden="true" />}
-          </button>
           <button className="erzmark-rune-btn" onClick={() => setShowFeedback(true)}>
             <span className="erzmark-rune-btn-icon">
               <FeedbackIcon />
@@ -579,12 +566,31 @@ export default function MainScreen({ session, onLoggedOut }) {
 
       {newAchievementGlow && <div className="erzmark-edge-glow-right" aria-hidden="true" />}
 
+      <button
+        type="button"
+        className={`erzmark-edge-book-tab${newAchievementGlow ? " erzmark-edge-book-tab-notify" : ""}`}
+        onClick={() => {
+          setShowAchievements(true);
+          setNewAchievementGlow(false);
+        }}
+        title="Die Schmiede öffnen"
+        aria-label="Die Schmiede öffnen"
+      >
+        <span className="erzmark-edge-book-tab-icon">
+          <TrophyIcon />
+        </span>
+        <span className="erzmark-edge-book-tab-arrow" aria-hidden="true">
+          ‹
+        </span>
+      </button>
+
       {showSettings && <SettingsScreen onClose={() => setShowSettings(false)} />}
       {showSkinChanger && <SkinChangerScreen onClose={() => setShowSkinChanger(false)} />}
       {showProfile && <ProfileScreen onClose={() => setShowProfile(false)} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} />}
       {showAchievements && (
         <AchievementsScreen
+          playerName={session?.username}
           onClose={() => {
             setShowAchievements(false);
             setNewAchievementGlow(false);

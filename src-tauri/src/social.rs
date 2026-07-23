@@ -285,3 +285,59 @@ pub async fn remove_profile_cover(client: &reqwest::Client, sanctum_token: &str)
     }
     Ok(())
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ProfileCustomization {
+    pub bio: Option<String>,
+    #[serde(rename = "bannerId")]
+    pub banner_id: Option<String>,
+    #[serde(rename = "featuredAchievementIds")]
+    pub featured_achievement_ids: Vec<String>,
+}
+
+/// Bio/Banner-Preset/vorgestellte Erfolge lesen (23.07.2026) - ersetzt die
+/// bisherige rein clientseitige `localStorage`-Speicherung
+/// (`src/api/profileEditor.js`), damit Launcher/App/MineTrax-Website
+/// dieselben Werte zeigen.
+pub async fn fetch_profile_customization(client: &reqwest::Client, sanctum_token: &str) -> Result<ProfileCustomization> {
+    let resp = client
+        .get(config::ERZMARK_PROFILE_CUSTOMIZATION_URL)
+        .bearer_auth(sanctum_token)
+        .send()
+        .await
+        .context("Profil-Anpassungen nicht erreichbar (Netzwerk?)")?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!("Profil-Anpassungen-Abruf fehlgeschlagen ({})", resp.status());
+    }
+
+    resp.json::<ProfileCustomization>()
+        .await
+        .context("Ungültige Antwort beim Abruf der Profil-Anpassungen")
+}
+
+pub async fn save_profile_customization(
+    client: &reqwest::Client,
+    sanctum_token: &str,
+    customization: &ProfileCustomization,
+) -> Result<ProfileCustomization> {
+    let resp = client
+        .patch(config::ERZMARK_PROFILE_CUSTOMIZATION_URL)
+        .bearer_auth(sanctum_token)
+        .json(customization)
+        .send()
+        .await
+        .context("Profil-Anpassungen speichern fehlgeschlagen (Netzwerk?)")?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!(
+            "Profil-Anpassungen speichern fehlgeschlagen ({}): {}",
+            resp.status(),
+            resp.text().await.unwrap_or_default()
+        );
+    }
+
+    resp.json::<ProfileCustomization>()
+        .await
+        .context("Ungültige Antwort beim Speichern der Profil-Anpassungen")
+}

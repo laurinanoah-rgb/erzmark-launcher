@@ -107,3 +107,26 @@ pub async fn remove_profile_cover(state: State<'_, AppState>) -> Result<(), Soci
     let client = reqwest::Client::new();
     social::remove_profile_cover(&client, &token).await.map_err(SocialError::from)
 }
+
+#[tauri::command]
+pub async fn get_profile_customization(
+    state: State<'_, AppState>,
+) -> Result<social::ProfileCustomization, SocialError> {
+    let token = social::ensure_sanctum_token(state.inner()).await?;
+    let client = reqwest::Client::new();
+    social::fetch_profile_customization(&client, &token)
+        .await
+        .map_err(SocialError::from)
+}
+
+#[tauri::command]
+pub async fn save_profile_customization(
+    state: State<'_, AppState>,
+    customization: social::ProfileCustomization,
+) -> Result<social::ProfileCustomization, SocialError> {
+    let token = social::ensure_sanctum_token(state.inner()).await?;
+    let client = reqwest::Client::new();
+    social::save_profile_customization(&client, &token, &customization)
+        .await
+        .map_err(SocialError::from)
+}

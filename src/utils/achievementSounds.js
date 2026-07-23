@@ -41,21 +41,27 @@ function playTone({ freq, glideTo, duration = 0.25, type = "sine", gain = 0.05 }
   osc.stop(ctx.currentTime + duration);
 }
 
-const TIER_TONES = {
-  bronze: { freq: 392, glideTo: 440, type: "triangle", duration: 0.3, gain: 0.06 },
-  silver: { freq: 523, glideTo: 659, type: "sine", duration: 0.32, gain: 0.06 },
-  gold: { freq: 659, glideTo: 880, type: "sine", duration: 0.42, gain: 0.07 },
-  legendary: { freq: 392, glideTo: 1046, type: "sawtooth", duration: 0.6, gain: 0.06 },
+// Ein Klang je Kategorie statt je Seltenheitsstufe (Abschnitt 3 wurde von
+// Bronze/Silber/Gold/Legendär auf 4 thematische Kategorien umgestellt,
+// siehe api/achievements.js) - jeder Ton spiegelt die Stimmung seiner
+// Kategorie: Meilensteine kampfeslustig-perkussiv, Gaming warm/beständig,
+// Sozial freundlich/hell, Entdeckung mysteriös mit einem zweiten Oberton.
+const CATEGORY_TONES = {
+  milestones: { freq: 349, glideTo: 587, type: "sawtooth", duration: 0.4, gain: 0.07 },
+  gaming: { freq: 440, glideTo: 659, type: "sine", duration: 0.38, gain: 0.06 },
+  social: { freq: 494, glideTo: 622, type: "triangle", duration: 0.3, gain: 0.06 },
+  discovery: { freq: 392, glideTo: 880, type: "sine", duration: 0.5, gain: 0.06 },
 };
 
-/** Kurzer, tier-spezifischer Klang beim (erstmaligen) Ansehen eines
- * Achievements ("Frisch geschmiedet"). Bei "legendary" ein zweiter, höherer
- * Oberton kurz versetzt für einen volleren Klang. */
-export function playUnlockSound(tier) {
-  const tone = TIER_TONES[tier] ?? TIER_TONES.bronze;
+/** Kurzer, kategorie-spezifischer Klang beim (erstmaligen) Ansehen eines
+ * Achievements ("Frisch geschmiedet"). Bei "discovery" (Entdeckung &
+ * Geheimnisse) ein zweiter, höherer Oberton kurz versetzt für einen
+ * mystischeren, volleren Klang. */
+export function playUnlockSound(category) {
+  const tone = CATEGORY_TONES[category] ?? CATEGORY_TONES.milestones;
   playTone(tone);
-  if (tier === "legendary") {
-    window.setTimeout(() => playTone({ freq: 1046, glideTo: 1568, duration: 0.35, type: "sine", gain: 0.04 }), 90);
+  if (category === "discovery") {
+    window.setTimeout(() => playTone({ freq: 1046, glideTo: 1568, duration: 0.35, type: "sine", gain: 0.03 }), 110);
   }
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, Image, Pressable, StyleSheet, Animated, Easing, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Image, Pressable, TextInput, StyleSheet, Animated, Easing, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -8,12 +8,28 @@ import {
   removeProfilePhoto,
   uploadProfileCover,
   removeProfileCover,
+  getProfileCustomization,
+  saveProfileCustomization,
+  getAchievementCatalog,
 } from "../api/profiles";
+import { getAchievements } from "../api/achievements";
 import { getStoredToken, getActiveProfileUuid, getAccountUuid } from "../api/auth";
 import CoinPouch from "../components/CoinPouch";
 import { colors, radius, spacing } from "../theme";
 
 const AUTO_REFRESH_MS = 60 * 1000;
+const MAX_FEATURED = 3;
+
+// Dieselben Presets/IDs wie der Desktop-Launcher (src/api/profileEditor.js,
+// BANNER_PRESETS) - solide Farben statt CSS-Gradient (RN hat ohne
+// expo-linear-gradient keine native Gradient-Unterstuetzung, bewusst keine
+// neue Abhaengigkeit dafuer).
+const BANNER_PRESETS = [
+  { id: "forge", label: "Schmiede", color: "#8a5a12" },
+  { id: "frost", label: "Frost", color: "#1c5a7a" },
+  { id: "jade", label: "Jade", color: "#136b4c" },
+  { id: "void", label: "Void", color: "#4a2a72" },
+];
 
 /** "WARRIOR" -> "Warrior", gleiche Formatierung wie ProfileCard.jsx. */
 function prettifyClassName(rawClass) {
@@ -112,6 +128,13 @@ export default function ProfileScreen() {
   const [uploadingField, setUploadingField] = useState(null); // "photo" | "cover" | null
   const [uploadError, setUploadError] = useState(null);
 
+  const [customization, setCustomization] = useState(null);
+  const [bioDraft, setBioDraft] = useState("");
+  const [catalog, setCatalog] = useState([]);
+  const [unlockedIds, setUnlockedIds] = useState(new Set());
+  const [customizationSaving, setCustomizationSaving] = useState(false);
+  const [customizationError, setCustomizationError] = useState(null);
+
   const heroFade = useRef(new Animated.Value(0)).current;
   const heroScale = useRef(new Animated.Value(0.92)).current;
 
@@ -144,6 +167,62 @@ export default function ProfileScreen() {
       clearInterval(id);
     };
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+
+    Promise.all([getProfileCustomization(token), getAchievementCatalog(), getAchievements()])
+      .then(([custom, catalogEntries, achievements]) => {
+        if (cancelled) return;
+        setCustomization(custom);
+        setBioDraft(custom.bio ?? "");
+        setCatalog(catalogEntries);
+        setUnlockedIds(new Set(achievements.filter((a) => a.unlocked).map((a) => a.id)));
+      })
+      .catch((err) => {
+        if (!cancelled) setCustomizationError(err?.message ?? String(err));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  async function persistCustomization(next) {
+    setCustomizationSaving(true);
+    setCustomizationError(null);
+    try {
+      const saved = await saveProfileCustomization(token, next);
+      setCustomization(saved);
+    } catch (err) {
+      setCustomizationError(err?.message ?? String(err));
+    } finally {
+      setCustomizationSaving(false);
+    }
+  }
+
+  function handleSelectBanner(bannerId) {
+    if (!customization) return;
+    persistCustomization({ ...customization, bannerId });
+  }
+
+  function handleToggleFeatured(id) {
+    if (!customization) return;
+    const current = customization.featuredAchievementIds ?? [];
+    const next = current.includes(id)
+      ? current.filter((x) => x !== id)
+      : current.length < MAX_FEATURED
+        ? [...current, id]
+        : current;
+    if (next === current) return;
+    persistCustomization({ ...customization, featuredAchievementIds: next });
+  }
+
+  function handleSaveBio() {
+    if (!customization) return;
+    persistCustomization({ ...customization, bio: bioDraft });
+  }
 
   async function pickAndUpload(field) {
     setUploadError(null);
@@ -301,6 +380,68 @@ export default function ProfileScreen() {
           </Text>
         </Animated.View>
 
+        {customization && (
+          <View style={styles.customizationCard}>
+            <Text style={styles.cardTitle}>Über mich</Text>
+            <TextInput
+              style={styles.bioInput}
+              multiline
+              maxLength={280}
+              placeholder="Ein paar Worte über dich…"
+              placeholderTextColor={colors.textMuted}
+              value={bioDraft}
+              onChangeText={setBioDraft}
+              onBlur={() => {
+                if (bioDraft !== (customization.bio ?? "")) handleSaveBio();
+              }}
+            />
+
+            <Text style={styles.cardTitle}>Banner</Text>
+            <View style={styles.bannerRow}>
+              {BANNER_PRESETS.map((preset) => (
+                <Pressable
+                  key={preset.id}
+                  style={[
+                    styles.bannerSwatch,
+                    { backgroundColor: preset.color },
+                    customization.bannerId === preset.id && styles.bannerSwatchActive,
+                  ]}
+                  onPress={() => handleSelectBanner(preset.id)}
+                />
+              ))}
+            </View>
+
+            <Text style={styles.cardTitle}>
+              Sichtbare Erfolge/Sticker ({(customization.featuredAchievementIds ?? []).length}/{MAX_FEATURED})
+            </Text>
+            <View style={styles.stickerRow}>
+              {catalog
+                .filter((entry) => unlockedIds.has(entry.id))
+                .map((entry) => {
+                  const selected = (customization.featuredAchievementIds ?? []).includes(entry.id);
+                  return (
+                    <Pressable
+                      key={entry.id}
+                      style={[styles.stickerChip, selected && styles.stickerChipActive]}
+                      onPress={() => handleToggleFeatured(entry.id)}
+                    >
+                      <Text style={styles.stickerIcon}>{entry.icon}</Text>
+                      <Text style={[styles.stickerLabel, selected && styles.stickerLabelActive]} numberOfLines={1}>
+                        {entry.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              {catalog.filter((entry) => unlockedIds.has(entry.id)).length === 0 && (
+                <Text style={styles.empty}>Noch keine freigeschalteten Erfolge zum Vorstellen.</Text>
+              )}
+            </View>
+
+            {customizationSaving && <Text style={styles.customizationHint}>Speichert…</Text>}
+            {customizationError && <Text style={styles.error}>{customizationError}</Text>}
+          </View>
+        )}
+
         <View style={styles.statsGrid}>
           <StatTile icon="📜" value={activeProfile.questsCompleted ?? 0} label="Quests" index={0} />
           <StatTile icon="⏱" value={formatPlayTime(activeProfile.playTime)} label="Spielzeit" index={1} />
@@ -413,6 +554,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     alignItems: "center",
   },
+  customizationCard: {
+    backgroundColor: colors.panel,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  cardTitle: { fontSize: 12, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase", color: colors.textMuted, marginTop: spacing.sm },
+  bioInput: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm,
+    color: colors.text,
+    fontSize: 13,
+    minHeight: 60,
+    textAlignVertical: "top",
+  },
+  bannerRow: { flexDirection: "row", gap: spacing.sm },
+  bannerSwatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: "transparent" },
+  bannerSwatchActive: { borderColor: colors.gold },
+  stickerRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  stickerChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    maxWidth: 150,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
+  },
+  stickerChipActive: { borderColor: colors.gold, backgroundColor: "rgba(255,185,0,0.12)" },
+  stickerIcon: { fontSize: 14 },
+  stickerLabel: { fontSize: 11, color: colors.textMuted },
+  stickerLabelActive: { color: colors.gold, fontWeight: "700" },
+  customizationHint: { fontSize: 11, color: colors.textMuted },
   statsGrid: { flexDirection: "row", gap: spacing.md },
   statTile: {
     flex: 1,

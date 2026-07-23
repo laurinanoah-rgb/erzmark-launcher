@@ -2058,6 +2058,69 @@ body {
   gap: 8px;
 }
 
+.erzmark-modal-panel-wide {
+  width: 640px;
+}
+
+.erzmark-settings-layout {
+  display: flex;
+  min-height: 320px;
+  max-height: calc(100vh - 220px);
+}
+
+.erzmark-settings-nav {
+  flex: 0 0 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  border-right: 1px solid rgba(255, 185, 0, 0.15);
+}
+
+.erzmark-settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--erzmark-color-text-muted);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.erzmark-settings-nav-item:hover {
+  background: rgba(255, 185, 0, 0.08);
+  color: var(--erzmark-color-text);
+}
+
+.erzmark-settings-nav-item-active {
+  background: rgba(255, 185, 0, 0.14);
+  color: var(--erzmark-color-gold);
+  font-weight: 700;
+}
+
+.erzmark-settings-nav-icon {
+  font-size: 14px;
+}
+
+.erzmark-settings-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.erzmark-settings-select {
+  background: var(--erzmark-color-bg);
+  color: var(--erzmark-color-text);
+  border: 1px solid rgba(255, 185, 0, 0.3);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12.5px;
+}
+
 .erzmark-rune-btn-inline {
   font-family: inherit;
   font-size: 12px;
@@ -2380,52 +2443,208 @@ body {
   }
 }
 
+/* Ausgeblendeter Buch-Tab ganz rechts am Fensterrand (Abschnitt 3) - liegt
+   die meiste Zeit fast unsichtbar hinter der Kante, ein Pfeil lädt beim
+   Herannähern mit der Maus zum "Umblättern" ein, wie ein Lesezeichen das aus
+   einem Buch herausschaut. */
+.erzmark-edge-book-tab {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%) translateX(calc(100% - 9px));
+  z-index: 45;
+  width: 52px;
+  height: 128px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px 0 6px;
+  border: 1px solid rgba(255, 185, 0, 0.3);
+  border-right: none;
+  border-radius: 12px 0 0 12px;
+  background: linear-gradient(90deg, var(--erzmark-color-bg-elevated), var(--erzmark-color-panel));
+  color: var(--erzmark-color-text-muted);
+  cursor: pointer;
+  box-shadow: -6px 0 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.erzmark-edge-book-tab:hover,
+.erzmark-edge-book-tab:focus-visible {
+  transform: translateY(-50%) translateX(0);
+  color: var(--erzmark-color-gold);
+  box-shadow: -10px 0 26px rgba(255, 185, 0, 0.18);
+}
+
+.erzmark-edge-book-tab-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.erzmark-edge-book-tab-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.erzmark-edge-book-tab-arrow {
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.erzmark-edge-book-tab:hover .erzmark-edge-book-tab-arrow {
+  opacity: 1;
+  transform: translateX(-3px);
+  animation: erzmark-book-arrow-pulse 0.9s ease-in-out infinite;
+}
+
+.erzmark-edge-book-tab-notify {
+  border-color: rgba(255, 185, 0, 0.7);
+  color: var(--erzmark-color-gold);
+  transform: translateY(-50%) translateX(calc(100% - 22px));
+  animation: erzmark-notify-pulse 1.6s ease-in-out infinite;
+}
+
+/* Füllt das komplette Launcher-Fenster - kein Pop-up mehr, das Fenster
+   selbst "blättert um" (siehe Feedback zur ersten Fassung). */
+.erzmark-book-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(66, 183, 250, 0.07), transparent 55%),
+    radial-gradient(ellipse at 12% 105%, rgba(255, 185, 0, 0.08), transparent 55%),
+    var(--erzmark-color-bg);
+}
+
 .erzmark-book-panel {
-  width: 560px;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: 0;
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.4);
+  background: none;
 }
 
 .erzmark-book-viewport {
   position: relative;
-  margin: 18px 20px 8px;
-  min-height: 360px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 8px 32px 16px;
 }
 
-.erzmark-book-page-content {
-  transform-style: preserve-3d;
-  transform-origin: center center;
-  will-change: transform;
+/* Schlanke, transparente Titelzeile statt einer gerahmten Modal-Kopfzeile -
+   die Seite soll wie eine Szene wirken, nicht wie ein Dialogfenster
+   (eigene Klassen statt der geteilten .erzmark-modal-header/-close, damit
+   andere Fenster im Launcher unangetastet bleiben). */
+.erzmark-book-titlebar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px 0;
 }
 
-.erzmark-book-curl-shadow {
-  position: absolute;
+.erzmark-book-title {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-book-close {
+  background: none;
+  border: none;
+  color: var(--erzmark-color-text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 6px;
+  transition: color 0.15s ease;
+}
+
+.erzmark-book-close:hover {
+  color: var(--erzmark-color-gold);
+}
+
+/* Schmiede-Riss: Öffnen/Schließen-Übergang des ganzen Buch-Fensters (löst
+   den vorherigen 3D-Hinge ab, siehe Kommentar in AchievementsScreen.jsx). */
+.erzmark-forge-crack {
+  position: fixed;
   inset: 0;
-  background: linear-gradient(90deg, transparent 40%, rgba(0, 0, 0, 0.35));
-  opacity: 0;
+  z-index: 60;
   pointer-events: none;
+  opacity: 0;
+  overflow: hidden;
 }
 
-.erzmark-book-turn-arrow {
+.erzmark-forge-crack-line {
   position: absolute;
   top: 50%;
-  right: -14px;
-  transform: translateY(-50%);
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 185, 0, 0.35);
-  background: var(--erzmark-color-bg-elevated);
-  color: var(--erzmark-color-gold);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  left: 0;
+  right: 0;
+  height: 5px;
+  transform: translateY(-50%) scaleX(0);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 140, 0, 0.5) 12%,
+    rgba(255, 185, 0, 0.9) 35%,
+    #fff6dd 50%,
+    rgba(255, 185, 0, 0.9) 65%,
+    rgba(255, 140, 0, 0.5) 88%,
+    transparent 100%
+  );
+  box-shadow: 0 0 40px 14px rgba(255, 154, 0, 0.55), 0 0 120px 60px rgba(255, 154, 0, 0.25);
+  filter: blur(0.5px);
 }
 
-.erzmark-book-turn-arrow:hover {
-  transform: translateY(-50%) translateX(3px);
-  border-color: rgba(255, 185, 0, 0.8);
-  box-shadow: 0 0 14px rgba(255, 185, 0, 0.35);
-  animation: erzmark-book-arrow-pulse 0.9s ease-in-out infinite;
+.erzmark-forge-crack::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 45% at 100% 50%, rgba(255, 200, 120, 0.45), transparent 70%);
+}
+
+.erzmark-forge-crack-sparks {
+  position: absolute;
+  inset: 0;
+}
+
+.erzmark-forge-crack-sparks span {
+  position: absolute;
+  right: 4%;
+  top: calc(50% + (var(--i) - 9) * 4.2%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ffce70;
+  box-shadow: 0 0 8px rgba(255, 185, 0, 0.9);
+  opacity: 0;
+  animation: erzmark-forge-crack-spark 0.6s ease-out forwards;
+  animation-delay: calc(var(--i) * 0.012s);
+}
+
+@keyframes erzmark-forge-crack-spark {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-92vw) scale(0.4);
+    opacity: 0;
+  }
 }
 
 @keyframes erzmark-book-arrow-pulse {
@@ -2437,36 +2656,27 @@ body {
   }
 }
 
-.erzmark-book-turn-arrow-flipped {
-  display: inline-block;
-  transform: rotate(180deg);
-}
-
-.erzmark-book-page-dots {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  padding-bottom: 16px;
-}
-
-.erzmark-book-page-dots span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 185, 0, 0.25);
-  transition: background 0.2s ease;
-}
-
-.erzmark-book-page-dots span.is-active {
-  background: var(--erzmark-color-gold);
-}
-
-.erzmark-ach-stats-page {
+/* Spielzeit + Ringe zentriert am unteren Rand der verschmolzenen
+   Schmiede-Seite (löst die vorherige eigene Stats-Buchseite ab). */
+.erzmark-forge-footer {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  padding: 8px 4px 4px;
+  gap: 16px;
+  padding: 4px 4px 8px;
+}
+
+.erzmark-forge-crash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  text-align: center;
+  color: var(--erzmark-color-text);
 }
 
 .erzmark-ach-playtime {
@@ -2674,6 +2884,614 @@ body {
     transform: translateY(-46px) scale(0.3);
     opacity: 0;
   }
+}
+
+/* ---- Schmiede-Baum: Errungenschaften-Seite als Skilltree (Abschnitt 3) ---- */
+
+.erzmark-forge-page {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 4px 4px 0;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Höhlen-Atmosphäre hinter dem Baum - dunkle Vignette + warmer Dunst von
+   links (Schmiede-Spotlight) + zwei langsam driftende Nebelschwaden, damit
+   der Hintergrund so episch wie die Referenz-Vorlage wirkt statt flach zu
+   bleiben. Rein dekorativ, aus CSS-Gradients (keine Bild-Assets nötig). */
+.erzmark-forge-page::before {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  z-index: -2;
+  background: radial-gradient(ellipse 70% 60% at 8% 45%, rgba(255, 138, 60, 0.16), transparent 60%),
+    radial-gradient(ellipse 90% 70% at 90% 15%, rgba(120, 80, 40, 0.08), transparent 65%),
+    radial-gradient(ellipse 140% 120% at 50% 50%, transparent 35%, rgba(3, 4, 6, 0.55) 100%);
+}
+
+.erzmark-forge-page::after {
+  content: "";
+  position: absolute;
+  inset: -40px;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 40% 30% at 20% 70%, rgba(80, 90, 100, 0.18), transparent 70%),
+    radial-gradient(ellipse 50% 35% at 75% 30%, rgba(60, 70, 85, 0.14), transparent 70%);
+  filter: blur(6px);
+  animation: erzmark-forge-fog-drift 22s ease-in-out infinite alternate;
+}
+
+@keyframes erzmark-forge-fog-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(3%, -2%) scale(1.06);
+  }
+}
+
+.erzmark-forge-embers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.erzmark-forge-embers span {
+  position: absolute;
+  left: calc((var(--i) * 9.5%) + 2%);
+  bottom: -6px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ff9a3c;
+  box-shadow: 0 0 6px rgba(255, 154, 60, 0.85);
+  opacity: 0;
+  animation: erzmark-forge-ember-rise calc(5s + (var(--i) * 0.6s)) ease-in infinite;
+  animation-delay: calc(var(--i) * 0.4s);
+}
+
+@keyframes erzmark-forge-ember-rise {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-360px) translateX(12px);
+    opacity: 0;
+  }
+}
+
+/* Dezente Sigill-Sparkle unten rechts - rein dekorativ, wie im Referenzbild. */
+.erzmark-forge-sparkle {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  font-size: 1.1rem;
+  color: rgba(255, 185, 0, 0.5);
+  text-shadow: 0 0 10px rgba(255, 154, 60, 0.5);
+  animation: erzmark-forge-sparkle-pulse 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes erzmark-forge-sparkle-pulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.9) rotate(0deg);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.1) rotate(8deg);
+  }
+}
+
+.erzmark-forge-header {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 185, 0, 0.15);
+}
+
+.erzmark-forge-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: var(--erzmark-color-gold);
+  text-transform: uppercase;
+}
+
+.erzmark-forge-player {
+  font-size: 0.75rem;
+  color: var(--erzmark-color-text-muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Canvas-Bereich: füllt den Rest der Seite, enthält das schwebende
+   Spotlight-Panel + das pannbare/zoombare Baum-Canvas darunter. */
+.erzmark-forge-canvas-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Schwebendes Inspector-Panel oben links über dem Canvas (Nutzer-Feedback:
+   der Baum ist jetzt ein freies Canvas, keine feste Spalte mehr). Die
+   Akzentfarbe kommt je Achievement aus seiner Kategorie (--cat), nicht mehr
+   aus einer Bronze/Silber/Gold/Legendär-Stufe. */
+.erzmark-forge-spotlight {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px 18px;
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 20%, rgba(255, 154, 60, 0.08), transparent 70%), var(--erzmark-color-panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.erzmark-forge-spotlight-empty {
+  justify-content: center;
+  min-height: 200px;
+}
+
+.erzmark-forge-spotlight.is-locked {
+  opacity: 0.6;
+  filter: grayscale(0.5);
+}
+
+.erzmark-forge-medallion {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, var(--erzmark-color-panel), var(--erzmark-color-bg-elevated) 75%);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Glühender Schmelz-Kern hinter dem Medaillon-Symbol, sobald das Achievement
+   freigeschaltet ist - flackert leicht wie echte Glut statt starr zu
+   leuchten (siehe Referenzbild: das Flammen-Icon brennt sichtbar). */
+.erzmark-forge-spotlight.is-unlocked .erzmark-forge-medallion::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 154, 60, 0.55), rgba(255, 90, 20, 0.18) 55%, transparent 75%);
+  filter: blur(6px);
+  animation: erzmark-forge-medallion-flicker 2.2s ease-in-out infinite;
+}
+
+@keyframes erzmark-forge-medallion-flicker {
+  0%, 100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  60% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+}
+
+.erzmark-forge-medallion-icon {
+  font-size: 2.4rem;
+  filter: drop-shadow(0 0 6px rgba(255, 154, 60, 0.35));
+}
+
+.erzmark-forge-spotlight.is-unlocked .erzmark-forge-medallion {
+  border-color: var(--cat, rgba(255, 185, 0, 0.75));
+  box-shadow: 0 0 26px color-mix(in srgb, var(--cat, #ffb900) 55%, transparent);
+}
+
+.erzmark-forge-spotlight.is-cooling .erzmark-forge-medallion {
+  animation: erzmark-cooling-glow 3.2s ease-in-out infinite;
+}
+
+.erzmark-forge-spotlight.is-forging .erzmark-forge-medallion {
+  animation: erzmark-forge-flash 1.4s ease-out;
+}
+
+.erzmark-forge-flag {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--erzmark-color-gold);
+}
+
+.erzmark-forge-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--erzmark-color-text);
+}
+
+.erzmark-forge-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-forge-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.erzmark-forge-meta-date,
+.erzmark-forge-meta-percent {
+  font-size: 0.72rem;
+  color: var(--erzmark-color-text-muted);
+}
+
+.erzmark-forge-meta-context {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--erzmark-color-text-muted);
+}
+
+/* Pannbares/zoombares Baum-Canvas (Nutzer-Feedback: radiales Netz wie im
+   Referenzbild statt fester Zeilen, per gedrückter linker Maustaste
+   verschiebbar, Mausrad zum Zoomen). */
+.erzmark-forge-canvas-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.erzmark-forge-canvas-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+/* Setzt Pan/Zoom zurück auf "ganzer Baum sichtbar" - falls man sich beim
+   Verschieben/Zoomen verirrt hat. */
+.erzmark-forge-recenter {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 6;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 185, 0, 0.35);
+  background: var(--erzmark-color-bg-elevated);
+  color: var(--erzmark-color-gold);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.erzmark-forge-recenter:hover {
+  border-color: rgba(255, 185, 0, 0.8);
+  box-shadow: 0 0 14px rgba(255, 185, 0, 0.3);
+  transform: rotate(-25deg);
+}
+
+/* Übersicht-Ecke: verkleinerter Baum + Sichtfeld-Rahmen, Klick springt dorthin. */
+.erzmark-forge-minimap-wrap {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 6;
+}
+
+.erzmark-forge-minimap {
+  position: relative;
+  border-radius: 10px;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.erzmark-forge-minimap-node {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(140, 140, 140, 0.5);
+}
+
+.erzmark-forge-minimap-node.is-unlocked {
+  background: var(--cat);
+  box-shadow: 0 0 4px var(--cat);
+}
+
+.erzmark-forge-minimap-hub {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--cat);
+  box-shadow: 0 0 5px var(--cat);
+}
+
+.erzmark-forge-minimap-viewport {
+  position: absolute;
+  border: 1px solid rgba(255, 185, 0, 0.8);
+  background: rgba(255, 185, 0, 0.08);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.erzmark-forge-canvas-world {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.erzmark-forge-canvas-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.erzmark-forge-edge-base {
+  fill: none;
+  stroke: rgba(140, 140, 140, 0.18);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.erzmark-forge-edge-fill-path {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px currentColor);
+  transition: stroke-dasharray 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Zentraler Hub: Gesamtfortschritt über alle Kategorien. */
+.erzmark-forge-center-hub {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100px;
+  height: 100px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.erzmark-forge-center-ring {
+  position: absolute;
+  inset: 0;
+}
+
+.erzmark-forge-center-hub-text {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.erzmark-forge-center-hub-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--erzmark-color-gold);
+}
+
+.erzmark-forge-center-hub-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--erzmark-color-text-muted);
+  max-width: 70px;
+  text-align: center;
+  line-height: 1.1;
+}
+
+/* Kategorie-Hub: Anker-Knoten, von dem die Fortschritts-Kette der
+   Kategorie nach außen verzweigt. Farbe kommt aus --cat. */
+.erzmark-forge-hub {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.erzmark-forge-hub-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  background: radial-gradient(circle at 38% 32%, color-mix(in srgb, var(--cat) 70%, white), var(--cat) 55%, #2a2f38 90%);
+  border: 2px solid color-mix(in srgb, var(--cat) 80%, white);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--cat) 55%, transparent);
+}
+
+.erzmark-forge-hub-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cat);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--cat) 60%, transparent);
+  white-space: nowrap;
+}
+
+/* Erfolgs-Knoten: "geschmiedetes Medaillon" statt flacher Kreis - unlocked
+   bekommt einen glühenden Schmelz-Kern in der Kategorie-Farbe (--cat),
+   locked bleibt kaltes, mattes Eisen. */
+.erzmark-forge-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 2px solid rgba(150, 150, 150, 0.25);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.08), transparent 40%),
+    radial-gradient(circle, #2a2f38, #14171c 78%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), inset 0 -3px 6px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.erzmark-forge-node:hover {
+  transform: translate(-50%, -50%) translateY(-2px);
+}
+
+.erzmark-forge-node:focus-visible {
+  outline: 2px solid var(--erzmark-color-gold);
+  outline-offset: 3px;
+}
+
+.erzmark-forge-node.is-locked {
+  opacity: 0.7;
+  filter: saturate(0.6);
+}
+
+.erzmark-forge-node-icon {
+  font-size: 1.3rem;
+}
+
+.erzmark-forge-node.is-selected {
+  border-color: var(--erzmark-color-gold);
+  box-shadow: 0 0 0 3px rgba(255, 185, 0, 0.2);
+}
+
+.erzmark-forge-node.is-unlocked {
+  background: radial-gradient(circle at 38% 32%, color-mix(in srgb, var(--cat) 60%, white), var(--cat) 45%, #2a2f38 88%);
+  border-color: color-mix(in srgb, var(--cat) 75%, white);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 0 14px color-mix(in srgb, var(--cat) 55%, transparent);
+}
+
+.erzmark-forge-node.is-cooling {
+  animation: erzmark-cooling-glow 3.2s ease-in-out infinite;
+}
+
+.erzmark-forge-node-ping {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 185, 0, 0.6);
+  animation: erzmark-forge-node-ping 1.4s ease-out infinite;
+}
+
+@keyframes erzmark-forge-node-ping {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.erzmark-forge-meta-progress {
+  font-size: 0.72rem;
+  color: rgba(255, 154, 60, 0.85);
+}
+
+/* ---- Freischalt-Feier: Pop-up beim Moment des "Schmiedens" ---- */
+
+.erzmark-unlock-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 5, 7, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.erzmark-unlock-popup {
+  width: min(360px, 88vw);
+  padding: 32px 26px 26px;
+  animation: erzmark-unlock-pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes erzmark-unlock-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.erzmark-unlock-kicker {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--erzmark-color-gold);
+  margin-bottom: 4px;
+}
+
+.erzmark-unlock-reward {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--erzmark-color-text);
+  background: rgba(255, 185, 0, 0.1);
+  border: 1px solid rgba(255, 185, 0, 0.25);
+  border-radius: 8px;
+  padding: 6px 12px;
+}
+
+.erzmark-unlock-dismiss {
+  margin-top: 16px;
+  padding: 8px 22px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 185, 0, 0.4);
+  background: rgba(255, 185, 0, 0.12);
+  color: var(--erzmark-color-gold);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.erzmark-unlock-dismiss:hover {
+  background: rgba(255, 185, 0, 0.22);
+  box-shadow: 0 0 14px rgba(255, 185, 0, 0.3);
 }
 
 /* ---- Feedback-Fenster (Launcher-Update-TODO, Abschnitt 6) ---- */

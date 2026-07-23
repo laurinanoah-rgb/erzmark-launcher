@@ -1,9 +1,11 @@
-// Profil-Editor (Launcher-Update-TODO, Abschnitt 6) - reine Präferenz-Daten
-// (Banner-Auswahl/Bio/vorgestellte Erfolge), deshalb genügt lokale Persistenz
-// über localStorage statt eines eigenen Server-Endpunkts (gleiches Muster wie
-// der "gelesen"-Zustand in App.jsx). Ein künftiger echter Profil-Endpunkt
-// (Teil von "Erzmark Pass", siehe TODO) könnte dasselbe Format übernehmen.
-const STORAGE_KEY = "erzmark-profile-editor";
+// Profil-Editor (Launcher-Update-TODO, Abschnitt 6) - Bio/Banner-Auswahl/
+// vorgestellte Erfolge. War bis 22.07.2026 rein lokal (localStorage), seit
+// 23.07.2026 echter Server-Endpunkt (ProfileController::getCustomization/
+// updateCustomization, Tabelle player_profiles, Account-Ebene), damit
+// Launcher, Mobile App und die MineTrax-Website (erzmark.de) denselben Stand
+// zeigen. Rückgabeform bewusst unverändert gegenüber der alten Mock-API,
+// damit ProfileScreen.jsx unangetastet bleibt.
+import { invoke } from "@tauri-apps/api/core";
 
 export const BANNER_PRESETS = [
   { id: "forge", label: "Schmiede", gradient: "linear-gradient(135deg, #ffb900, #6b3f00)" },
@@ -18,23 +20,26 @@ const DEFAULT_PROFILE = {
   featuredAchievementIds: [],
 };
 
-function delay(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
 export async function getProfile() {
-  await delay(120);
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_PROFILE };
-    return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_PROFILE };
-  }
+  const result = await invoke("get_profile_customization");
+  return {
+    bio: result.bio ?? DEFAULT_PROFILE.bio,
+    bannerId: result.bannerId ?? DEFAULT_PROFILE.bannerId,
+    featuredAchievementIds: result.featuredAchievementIds ?? [],
+  };
 }
 
 export async function saveProfile(profile) {
-  await delay(120);
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  return profile;
+  const result = await invoke("save_profile_customization", {
+    customization: {
+      bio: profile.bio || null,
+      bannerId: profile.bannerId || null,
+      featuredAchievementIds: profile.featuredAchievementIds ?? [],
+    },
+  });
+  return {
+    bio: result.bio ?? DEFAULT_PROFILE.bio,
+    bannerId: result.bannerId ?? DEFAULT_PROFILE.bannerId,
+    featuredAchievementIds: result.featuredAchievementIds ?? [],
+  };
 }

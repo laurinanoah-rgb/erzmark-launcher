@@ -59,3 +59,27 @@ export function uploadProfileCover(token, asset) {
 export function removeProfileCover(token) {
   return apiRequest("/profiles/cover", { method: "DELETE", token });
 }
+
+// ---- Bio/Banner-Preset/vorgestellte Erfolge (23.07.2026) ----
+// Dieselbe Account-Zeile wie Profilbild/Titelbild (ProfileController::
+// resolveOwnProfile()) - ersetzt/synchronisiert mit der bisher rein
+// clientseitigen localStorage-Speicherung im Desktop-Launcher
+// (src/api/profileEditor.js), damit Launcher/App/MineTrax-Website
+// denselben Stand zeigen.
+export function getProfileCustomization(token) {
+  return apiRequest("/profile/customization", { token });
+}
+
+export function saveProfileCustomization(token, { bio, bannerId, featuredAchievementIds }) {
+  return apiRequest("/profile/customization", {
+    method: "PATCH",
+    token,
+    body: { bio, bannerId, featuredAchievementIds },
+  });
+}
+
+// Statischer Erfolge-Katalog (kein Auth noetig, gleiche IDs wie
+// src/api/achievements.js) - Grundlage fuer die Sticker-Auswahl.
+export function getAchievementCatalog() {
+  return apiRequest("/achievements/catalog");
+}

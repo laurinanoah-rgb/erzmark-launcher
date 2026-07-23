@@ -12,6 +12,7 @@ import HomeScreen from "../screens/HomeScreen";
 import GuildListScreen from "../screens/GuildListScreen";
 import FriendsScreen from "../screens/FriendsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import AchievementsScreen from "../screens/AchievementsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import SplashScreen from "../screens/SplashScreen";
 import TeamScreen from "../screens/TeamScreen";
@@ -31,7 +32,7 @@ import {
 // Mindestdauer fuer die Start-Animation (SplashScreen.jsx) - ohne das
 // wuerde sie auf schnellen Geraeten/mit bereits gueltigem Token oft nur ein
 // paar Millisekunden aufblitzen, bevor direkt der Home-Screen erscheint.
-const SPLASH_MIN_DURATION_MS = 1500;
+const SPLASH_MIN_DURATION_MS = 2300;
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -41,6 +42,7 @@ const TAB_ICONS = {
   Gilden: "🛡️",
   Freunde: "👥",
   Profil: "🙂",
+  Erfolge: "🏆",
   Team: "🛠️",
   Einstellungen: "⚙️",
 };
@@ -61,6 +63,7 @@ function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, is
       <Tabs.Screen name="Gilden" component={GuildListScreen} />
       <Tabs.Screen name="Freunde" component={FriendsScreen} />
       <Tabs.Screen name="Profil" component={ProfileScreen} />
+      <Tabs.Screen name="Erfolge" component={AchievementsScreen} />
       {isStaff && <Tabs.Screen name="Team" component={TeamScreen} />}
       <Tabs.Screen name="Einstellungen">
         {() => (

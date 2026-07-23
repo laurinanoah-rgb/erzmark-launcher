@@ -1,21 +1,18 @@
-// Mock-API für Achievements & Stats (Launcher-Update-TODO, Abschnitt 3) - es
-// gibt aktuell kein Achievement-Plugin im Backend (nur Quests/Spielzeit/
-// Münzen/Level aus MMOCore, siehe profiles.js). Genau wie beim
-// Freundessystem (Teil 1: Frontend/Mock, siehe FriendsList.jsx/
-// NotificationsContext.jsx) wird hier zuerst die komplette UI gegen ein
-// Mock-Datenformat gebaut, in das sich ein künftiger echter Tauri-Command
-// 1:1 einsetzen lässt (gleiche Feldnamen, gleiche async-Signatur).
+// Mock-API für Achievements & Stats — 1:1 dieselbe Datenstruktur wie der
+// Desktop-Launcher (src/api/achievements.js im Projekt-Root), damit ein
+// künftiger echter Backend-Wechsel (siehe Launcher-Update-TODO.md Abschnitt
+// 3) an beiden Stellen identisch aussieht. Es gibt aktuell kein
+// Achievement-Plugin im Backend — nur Quests/Spielzeit/Münzen/Level aus
+// MMOCore (siehe profiles.js).
 //
-// Datenmodell (Nutzer-Feedback): keine Bronze/Silber/Gold/Legendär-Stufen
-// mehr, sondern 4 thematische Kategorien. Jede Kategorie ist eine
-// eskalierende Fortschritts-Kette (z. B. Spielzeit: Server betreten -> 8h ->
-// 20h -> 100h -> ...), kein Sammelsurium unabhängiger Erfolge. `step` legt
-// die Reihenfolge innerhalb der Kette fest.
+// Datenmodell: 4 thematische Kategorien, jede eine eskalierende
+// Fortschritts-Kette (`step` legt die Reihenfolge fest), kein Sammelsurium
+// unabhängiger Erfolge.
 
 const MOCK_DELAY_MS = 220;
 
 function delay(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 const STATS = {
@@ -300,8 +297,7 @@ function buildInitialState() {
     contextSentence: def.contextSentence,
     percentUnlocked: stablePercent(def.id, 2, 78),
     // Eigener Fortschritt des Spielers zum Freischalten (0-100), nur für
-    // gesperrte Achievements relevant - lässt die Ast-Verbindung im
-    // Schmiede-Baum stufenweise (1/4, 2/4, 3/4, voll) aufglühen.
+    // gesperrte Achievements relevant.
     progressPercent: def.unlockedDaysAgo != null ? 100 : def.progressPercent ?? 0,
     justUnlocked: false,
   }));
@@ -313,10 +309,10 @@ let unlockTimerStarted = false;
 function scheduleSimulatedUnlock() {
   if (unlockTimerStarted) return;
   unlockTimerStarted = true;
-  // Rein zur Demonstration des Freischalt-Moments/Lichtscheins während
-  // laufender Session - ein späterer echter Endpunkt würde hierfür einen
-  // Event-/Push-Mechanismus liefern statt eines Timers.
-  window.setTimeout(() => {
+  // Rein zur Demonstration des Freischalt-Moments während laufender Session
+  // - ein späterer echter Endpunkt würde hierfür Push/Polling liefern statt
+  // eines Timers (analog zum Freundes-/Benachrichtigungssystem).
+  setTimeout(() => {
     const target = achievementsState.find((a) => !a.unlocked);
     if (!target) return;
     target.unlocked = true;
@@ -347,9 +343,7 @@ export function subscribeNewUnlock(callback) {
   return () => listeners.delete(callback);
 }
 
-/** Markiert ein frisch freigeschaltetes Achievement als "gesehen", damit der
- * Frisch-geschmiedet-Effekt nur einmal abläuft (danach nur noch das
- * dauerhafte Abkühl-Glühen). */
+/** Markiert ein frisch freigeschaltetes Achievement als "gesehen". */
 export function acknowledgeJustUnlocked(id) {
   const entry = achievementsState?.find((a) => a.id === id);
   if (entry) entry.justUnlocked = false;

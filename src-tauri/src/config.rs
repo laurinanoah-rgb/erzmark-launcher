@@ -114,3 +114,8 @@ pub const ERZMARK_FRIENDS_REMOVE_URL: &str = "https://erzmark.de/api/app-api/fri
 pub const ERZMARK_PROFILE_MINE_URL: &str = "https://erzmark.de/api/app-api/profiles/mine";
 pub const ERZMARK_PROFILE_PHOTO_URL: &str = "https://erzmark.de/api/app-api/profiles/photo";
 pub const ERZMARK_PROFILE_COVER_URL: &str = "https://erzmark.de/api/app-api/profiles/cover";
+
+/// Bio/Banner-Preset/vorgestellte Erfolge (23.07.2026) - dieselbe
+/// Account-Zeile wie Profilbild/Titelbild, siehe ProfileController::
+/// getCustomization()/updateCustomization() im Backend.
+pub const ERZMARK_PROFILE_CUSTOMIZATION_URL: &str = "https://erzmark.de/api/app-api/profile/customization";

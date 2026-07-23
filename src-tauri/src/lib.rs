@@ -57,6 +57,8 @@ pub fn run() {
             social_commands::remove_profile_photo,
             social_commands::upload_profile_cover,
             social_commands::remove_profile_cover,
+            social_commands::get_profile_customization,
+            social_commands::save_profile_customization,
             profiles_commands::get_character_profiles,
             skin_commands::get_current_skin_url,
             skin_commands::set_skin_url,

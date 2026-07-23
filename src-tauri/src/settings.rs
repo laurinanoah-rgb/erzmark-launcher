@@ -35,6 +35,19 @@ pub struct LauncherSettings {
     pub notify_achievements: bool,
     #[serde(default)]
     pub mute_ui_sounds: bool,
+
+    /// Manuelles Override fürs Performance-Stufensystem (Launcher-Update-TODO
+    /// Abschnitt 1, "Manuelles Override in den Settings"): `"auto"`, `"full"`
+    /// oder `"reduced"`. `"auto"` (Default) lässt `performanceTier.js` weiter
+    /// per Geräte-Heuristik entscheiden. Wird zusätzlich clientseitig in
+    /// localStorage gespiegelt (siehe `performanceTier.js`), da der Tier
+    /// synchron beim ersten Render gebraucht wird.
+    #[serde(default = "default_perf_tier_override")]
+    pub performance_tier_override: String,
+}
+
+fn default_perf_tier_override() -> String {
+    "auto".to_string()
 }
 
 fn default_true() -> bool {
@@ -50,6 +63,7 @@ impl Default for LauncherSettings {
             notify_friend_requests: true,
             notify_achievements: true,
             mute_ui_sounds: false,
+            performance_tier_override: default_perf_tier_override(),
         }
     }
 }
