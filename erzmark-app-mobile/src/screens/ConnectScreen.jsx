@@ -1,90 +1,74 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { useEffect, useState } from "react";
+import { View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, AppState } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getConnectStatus, startConnect, stopConnect } from "../api/connect";
-import { getStoredToken } from "../api/auth";
+import { startLanBroadcast, stopLanBroadcast, isLanBroadcastActive } from "../native/lanBroadcast";
 import { colors, radius, spacing } from "../theme";
-
-// Wie oft der echte Serverstatus nachgeprüft wird, während die Umleitung
-// laeuft - der Button spiegelt damit den tatsächlichen Relay-Status wider
-// (fällt z.B. zurück in den grünen Ruhezustand, falls die Freigabe serverseitig
-// abgelaufen ist), statt nur den letzten Tap zu merken.
-const STATUS_POLL_MS = 15 * 1000;
 
 /**
  * "Connect"-Untermenü für Bedrock-Konsolenspieler (Xbox/PlayStation/Switch):
- * schaltet die eigene Public-IP für den zentral gehosteten DNS+RakNet-Relay
- * frei, der die Konsole direkt zu erzmark.de durchleitet. Nur für Konsolen
- * relevant - Mobile/Windows-Bedrock verbindet sich bereits über Geyser/Floodgate.
+ * das Handy beantwortet LAN-Discovery-Broadcasts (siehe native/lanBroadcast.js),
+ * sodass "Erzmark" automatisch in der Bedrock-Serverliste der Konsole
+ * auftaucht - kein manuelles DNS-Eintragen mehr (Nutzerwunsch, 26.07.2026,
+ * ersetzt den ursprünglich geplanten zentralen DNS-Redirect). Nur für
+ * Konsolen relevant - Mobile/Windows-Bedrock verbindet sich bereits über
+ * Geyser/Floodgate direkt.
+ *
+ * WICHTIG: Funktioniert nur, solange die App im Vordergrund offen ist (kein
+ * Hintergrund-Listening) UND nur, solange Handy und Konsole im selben WLAN
+ * sind - reines LAN-Protokoll, kein Internet/DNS involviert. Geht die App in
+ * den Hintergrund, wird automatisch gestoppt (AppState-Listener unten),
+ * sonst würde der Button faelschlich "aktiv" anzeigen, obwohl nicht mehr
+ * geantwortet wird.
+ *
+ * Phase 1 von 2 (siehe lanBroadcast.js-Kommentar): macht das Handy nur
+ * SICHTBAR in der LAN-Liste. Tippt jemand auf der Konsole auf "Erzmark",
+ * passiert aktuell noch nichts - der volle RakNet-Verbindungsaufbau +
+ * Transfer-Paket zum echten Server ist noch nicht gebaut (echtes
+ * Protokoll-Reverse-Engineering, erst nach Bestätigung dass Phase 1 auf
+ * einer echten Konsole sichtbar ist).
  */
 export default function ConnectScreen({ onBack } = {}) {
   const [infoOpen, setInfoOpen] = useState(false);
-  const [status, setStatus] = useState(undefined); // undefined = laedt initial noch
+  const [active, setActive] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const pollRef = useRef(null);
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
-
-  const refreshStatus = useCallback(async () => {
-    const token = await getStoredToken();
-    const result = await getConnectStatus(token);
-    setStatus(result);
-    return result;
-  }, []);
-
-  const startPolling = useCallback(() => {
-    stopPolling();
-    pollRef.current = setInterval(async () => {
-      try {
-        const result = await refreshStatus();
-        if (!result.active) stopPolling();
-      } catch {
-        // Health-Check kurz nicht erreichbar - naechster Tick versucht es
-        // erneut, bevor wir den Nutzer mit einem Fehler stoeren.
-      }
-    }, STATUS_POLL_MS);
-  }, [refreshStatus, stopPolling]);
 
   useEffect(() => {
-    refreshStatus()
-      .then((result) => {
-        if (result.active) startPolling();
-      })
-      .catch(() => setStatus({ active: false, dnsHost: null, expiresAt: null }));
-    return stopPolling;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active" && isLanBroadcastActive()) {
+        stopLanBroadcast();
+        setActive(false);
+      }
+    });
+    return () => {
+      sub.remove();
+      stopLanBroadcast();
+    };
   }, []);
 
   async function handlePress() {
     setBusy(true);
     setError(null);
     try {
-      const token = await getStoredToken();
-      const result = status?.active ? await stopConnect(token) : await startConnect(token);
-      setStatus(result);
-      if (result.active) startPolling();
-      else stopPolling();
+      if (active) {
+        stopLanBroadcast();
+        setActive(false);
+      } else {
+        await startLanBroadcast();
+        setActive(true);
+      }
     } catch (err) {
-      stopPolling();
-      setStatus((prev) => ({ ...(prev ?? {}), active: false }));
+      stopLanBroadcast();
+      setActive(false);
       setError(
-        status?.active
+        active
           ? "Stoppen fehlgeschlagen - bitte erneut versuchen."
-          : "Verbindung konnte nicht gestartet werden - Dienst gerade nicht erreichbar."
+          : `Konnte nicht starten: ${err?.message ?? String(err)}`
       );
     } finally {
       setBusy(false);
     }
   }
-
-  const active = status?.active === true;
-  const loading = status === undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -105,33 +89,31 @@ export default function ConnectScreen({ onBack } = {}) {
           {infoOpen && (
             <View style={styles.infoBody}>
               <Text style={styles.infoText}>
-                Konsolen können sich nicht direkt mit Bedrock-Servern außerhalb der offiziellen Serverliste
-                verbinden. Der Trick: Du trägst bei deiner Konsole eine spezielle DNS-Adresse ein - darüber
-                landest du in einer Serverliste mit nur einem Eintrag: Erzmark.
+                Dein Handy meldet sich im WLAN als "LAN-Welt" - genau wie beim gemeinsamen Bauen mit
+                Freunden im selben Netzwerk. Deine Konsole findet Erzmark dadurch automatisch, ganz ohne
+                DNS- oder Netzwerkeinstellungen.
               </Text>
-              <Text style={styles.infoStep}>1. Tippe unten auf „Starten".</Text>
-              <Text style={styles.infoStep}>
-                2. Konsole: Netzwerkeinstellungen → DNS manuell einstellen{status?.dnsHost ? ` → ${status.dnsHost}` : ""}.
-              </Text>
-              <Text style={styles.infoStep}>3. Netzwerkverbindung der Konsole neu testen/speichern.</Text>
-              <Text style={styles.infoStep}>4. In der Bedrock-Serverliste „Erzmark" auswählen.</Text>
+              <Text style={styles.infoStep}>1. Handy und Konsole im selben WLAN.</Text>
+              <Text style={styles.infoStep}>2. Tippe unten auf „Starten" und lass die App offen.</Text>
+              <Text style={styles.infoStep}>3. Konsole: Minecraft öffnen → Spielen → „Erzmark" sollte in der Liste erscheinen.</Text>
               <Text style={styles.infoHint}>
-                Handy und Konsole müssen im selben WLAN sein, solange „Verbindung aktiv" ist.
+                Die App muss dabei im Vordergrund bleiben - schließt du sie, verschwindet Erzmark wieder
+                aus der Liste.
               </Text>
             </View>
           )}
         </Pressable>
 
-        {active && <Text style={styles.statusText}>Verbindung zu erzmark.de stabil</Text>}
+        {active && <Text style={styles.statusText}>Im WLAN sichtbar als „Erzmark"</Text>}
         {error && <Text style={styles.errorText}>{error}</Text>}
 
         <View style={styles.buttonWrap}>
           <Pressable
             style={[styles.mainButton, active ? styles.mainButtonActive : styles.mainButtonIdle]}
             onPress={handlePress}
-            disabled={busy || loading}
+            disabled={busy}
           >
-            {busy || loading ? (
+            {busy ? (
               <ActivityIndicator color={colors.bg} />
             ) : (
               <Text style={styles.mainButtonText}>{active ? "Stoppen" : "Starten"}</Text>

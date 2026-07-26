@@ -79,6 +79,56 @@ Login-Pfad für Konsolenspieler ohne Java-Edition-Lizenz (reine Xbox-Live-
 Identität, neue Backend-Identität neben MMOProfiles) wäre ein eigenes,
 größeres Vorhaben - noch nicht geplant/begonnen.
 
+## "Connect"-Feature v2: LAN-Discovery statt DNS-Redirect (26.07.2026, ERSETZT den obigen Plan)
+
+**Nutzerwunsch (26.07.2026):** Kein manuelles DNS-Eintragen auf der Konsole -
+Erzmark soll wie eine ganz normale "LAN-Welt" automatisch in der
+Bedrock-Serverliste auftauchen, genau wie beim gemeinsamen Bauen mit
+Freunden im selben WLAN.
+
+**Warum das den ganzen Server-Teil oben überflüssig macht:** Bedrock-Konsolen
+entdecken LAN-Welten rein lokal - sie schicken einen RakNet "Unconnected
+Ping" per UDP-**Broadcast** auf Port 19132 ins WLAN, jedes Gerät im selben
+Netz kann mit einem "Unconnected Pong" antworten und taucht automatisch in
+der Liste auf. Kein DNS, kein Internet-Server nötig - das Handy selbst kann
+das übernehmen, weil Port 19132 (anders als DNS-Port 53) ein **unprivilegierter
+Port** ist, den auch eine normale App ohne Root binden darf. Die neu gekaufte
+zweite IP (`162.55.27.148`) wird für dieses Feature **nicht gebraucht** -
+bleibt als Reserve für spätere Ideen (z. B. geo-verteilte Knoten).
+
+**Umgesetzt (26.07.2026), Phase 1 von 2:**
+- `src/native/lanBroadcast.js` - `react-native-udp` (**neue native
+  Abhängigkeit, neuer Build nötig**), bindet UDP-Port 19132, beantwortet
+  RakNet "Unconnected Ping" mit einem "Unconnected Pong" (MOTD `"Erzmark"`).
+  Protokollwerte (Protokollversion `1001`, Version `"26.33"`, Gamemode
+  Survival) live vom echten Server abgefragt (`erzmark.de:19132`), nicht
+  geraten.
+- `ConnectScreen.jsx` umgebaut: kein Server-API-Call mehr (`api/connect.js`
+  gelöscht), Start/Stop schaltet direkt den lokalen UDP-Responder.
+  `AppState`-Listener stoppt automatisch, wenn die App in den Hintergrund
+  geht (sonst würde der Button fälschlich "aktiv" anzeigen).
+- `app.json`: `NSLocalNetworkUsageDescription` für iOS ergänzt (Pflicht ab
+  iOS 14 für jeden Zugriff aufs lokale Netzwerk, sonst blockiert iOS das
+  stillschweigend).
+- `package.json`: `react-native-udp` von `expo-doctor`s "unmaintained
+  package"-Check ausgenommen (`expo.doctor.reactNativeDirectoryCheck.exclude`)
+  - funktioniert trotz seltener Updates einwandfrei mit RN 0.81, sonst
+    schlägt der EAS-Build daran fehl (wie schon zweimal zuvor in dieser
+    Session bei anderen Checks).
+
+**NOCH NICHT umgesetzt, Phase 2 (nächster Schritt):** Phase 1 macht das Handy
+nur *sichtbar* in der LAN-Liste. Tippt jemand auf der Konsole auf "Erzmark",
+passiert aktuell noch **nichts** - der volle RakNet-Verbindungsaufbau
+(OpenConnectionRequest1/2-Handshake, Reliability-Layer, komprimiertes
+Login-Paket) plus das abschließende "Transfer"-Paket, das die Konsole zum
+echten Server (`162.55.27.161:19132`) umleitet, fehlt noch. Das ist echtes
+Bedrock-Protokoll-Reverse-Engineering ohne öffentliche High-Level-Library für
+React Native - bewusst NICHT blind implementiert, da ohne echte Konsole zum
+Testen ein hohes Risiko besteht, etwas zu bauen, das nur *aussieht* wie es
+funktioniert. **Nächster Schritt**: mit einer echten Konsole/Switch im selben
+WLAN prüfen, ob "Erzmark" in der LAN-Liste auftaucht (neuer `preview`-Build
+nötig, siehe unten) - erst danach lohnt es sich, Phase 2 anzugehen.
+
 
 ## MVP (v0.1) – das Nötigste, was funktionieren muss
 

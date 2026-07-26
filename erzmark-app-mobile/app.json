@@ -22,7 +22,10 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "de.erzmark.app"
+      "bundleIdentifier": "de.erzmark.app",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Erzmark Connect antwortet auf LAN-Discovery-Anfragen deiner Konsole, damit Erzmark als Welt in der Bedrock-Serverliste erscheint."
+      }
     },
     "android": {
       "package": "de.erzmark.app",
