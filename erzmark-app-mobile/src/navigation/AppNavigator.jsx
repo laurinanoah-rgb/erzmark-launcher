@@ -7,6 +7,7 @@ import { colors } from "../theme";
 
 import LoginScreen from "../screens/LoginScreen";
 import UpdateRequiredScreen from "../screens/UpdateRequiredScreen";
+import PlatformSelectScreen from "../screens/PlatformSelectScreen";
 import ProfileSelectScreen from "../screens/ProfileSelectScreen";
 import HomeScreen from "../screens/HomeScreen";
 import GuildListScreen from "../screens/GuildListScreen";
@@ -93,6 +94,11 @@ function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, is
  * Reihenfolge beim Start:
  * 1. Update-Check (Store-Pflicht-Update blockiert alles andere).
  * 2. Login-Check (Minecraft-Account nötig).
+ * 2.5. Plattform-Auswahl (Java/Bedrock, NEU 26.07.2026, siehe
+ *      PlatformSelectScreen.jsx) - "Bedrock" führt direkt zu ConnectScreen
+ *      (DNS-Redirect-Setup) statt zur Java-Profilauswahl. Bewusst KEIN
+ *      eigener Bedrock-Login (Xbox-Live/XUID) - v1-Scope, siehe dortiger
+ *      Kommentar. Erscheint wie die Profil-Auswahl bei JEDEM App-Start.
  * 3. Profil-Auswahl (MMOProfiles: mehrere Charakter-UUIDs pro Account,
  *    siehe Task #51/#82) - eigener Screen im Start-Flow, NICHT in den
  *    Einstellungen versteckt. Erscheint bewusst bei JEDEM App-Start (nicht
@@ -106,6 +112,7 @@ function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, is
 export default function AppNavigator() {
   const [pendingUpdate, setPendingUpdate] = useState(undefined); // undefined = noch am prüfen
   const [token, setToken] = useState(undefined);
+  const [platform, setPlatform] = useState(undefined); // "java" | "bedrock" | null (noch nicht gewaehlt)
   const [activeProfileUuid, setActiveProfileUuid] = useState(undefined);
   const [splashMinDurationDone, setSplashMinDurationDone] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
@@ -150,6 +157,7 @@ export default function AppNavigator() {
       const stored = await getStoredToken();
       if (stored) {
         setToken(stored);
+        setPlatform(null);
         setActiveProfileUuid(null);
         return;
       }
@@ -158,6 +166,7 @@ export default function AppNavigator() {
       // Login-Screen gezeigt wird (Auto-Login, analog zum Desktop-Launcher).
       const refreshed = await tryRefreshLogin();
       setToken(refreshed?.token ?? null);
+      setPlatform(null);
       setActiveProfileUuid(null);
     })();
 
@@ -165,7 +174,8 @@ export default function AppNavigator() {
     return () => clearTimeout(timer);
   }, []);
 
-  const checksReady = pendingUpdate !== undefined && token !== undefined && activeProfileUuid !== undefined;
+  const checksReady =
+    pendingUpdate !== undefined && token !== undefined && platform !== undefined && activeProfileUuid !== undefined;
   if (!checksReady || !splashMinDurationDone) {
     return <SplashScreen />;
   }
@@ -182,6 +192,7 @@ export default function AppNavigator() {
     disconnectEcho();
     const remaining = await logout();
     setToken(remaining?.token ?? null);
+    setPlatform(null);
     setActiveProfileUuid(remaining?.activeProfileUuid ?? null);
   }
 
@@ -189,6 +200,7 @@ export default function AppNavigator() {
     disconnectEcho();
     const result = await switchAccount(uuid);
     setToken(result.token);
+    setPlatform(null);
     setActiveProfileUuid(result.activeProfileUuid);
   }
 
@@ -198,6 +210,7 @@ export default function AppNavigator() {
   async function handleAddAccount() {
     const result = await loginWithMinecraft();
     setToken(result.token);
+    setPlatform(null);
     setActiveProfileUuid(result.activeProfileUuid);
   }
 
@@ -214,10 +227,28 @@ export default function AppNavigator() {
               <LoginScreen
                 onLoggedIn={(result) => {
                   setToken(result.token);
+                  setPlatform(null);
                   setActiveProfileUuid(result.activeProfileUuid);
                 }}
               />
             )}
+          </RootStack.Screen>
+        ) : !platform ? (
+          <RootStack.Screen name="PlatformSelect">
+            {() => (
+              <PlatformSelectScreen
+                onSelectPlatform={setPlatform}
+                onLogout={(remaining) => {
+                  setToken(remaining?.token ?? null);
+                  setPlatform(null);
+                  setActiveProfileUuid(remaining?.activeProfileUuid ?? null);
+                }}
+              />
+            )}
+          </RootStack.Screen>
+        ) : platform === "bedrock" ? (
+          <RootStack.Screen name="BedrockConnect">
+            {() => <ConnectScreen onBack={() => setPlatform(null)} />}
           </RootStack.Screen>
         ) : !activeProfileUuid ? (
           <RootStack.Screen name="ProfileSelect">

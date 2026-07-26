@@ -69,6 +69,16 @@ Adresse auf dem Netzwerk-Interface eingerichtet werden (`ip addr add
 Umsetzung der drei Komponenten (mit vorherigem Backup, schrittweiser
 Bestätigung, Live-Verifikation nach jeder Änderung).
 
+**Update 26.07.2026 (2): Plattform-Auswahl im Start-Flow.** Neuer
+`PlatformSelectScreen.jsx` nach dem Login: "Java" führt wie bisher zur
+Java-Profilauswahl, "Bedrock" führt direkt zu `ConnectScreen.jsx` (mit
+Zurück-Link). **Bewusster v1-Scope** (mit Nutzer abgestimmt): KEIN eigener
+Xbox-Live/XUID-Login - "Bedrock" nutzt technisch denselben Java-/Sanctum-
+Account, ist nur eine UI-Weiche zum Connect-Setup. Ein echter zweiter
+Login-Pfad für Konsolenspieler ohne Java-Edition-Lizenz (reine Xbox-Live-
+Identität, neue Backend-Identität neben MMOProfiles) wäre ein eigenes,
+größeres Vorhaben - noch nicht geplant/begonnen.
+
 
 ## MVP (v0.1) – das Nötigste, was funktionieren muss
 

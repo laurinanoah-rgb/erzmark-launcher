@@ -17,7 +17,7 @@ const STATUS_POLL_MS = 15 * 1000;
  * frei, der die Konsole direkt zu erzmark.de durchleitet. Nur für Konsolen
  * relevant - Mobile/Windows-Bedrock verbindet sich bereits über Geyser/Floodgate.
  */
-export default function ConnectScreen() {
+export default function ConnectScreen({ onBack } = {}) {
   const [infoOpen, setInfoOpen] = useState(false);
   const [status, setStatus] = useState(undefined); // undefined = laedt initial noch
   const [busy, setBusy] = useState(false);
@@ -89,6 +89,11 @@ export default function ConnectScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content}>
+        {onBack && (
+          <Pressable onPress={onBack} hitSlop={8}>
+            <Text style={styles.backLink}>‹ Zurück zur Plattformwahl</Text>
+          </Pressable>
+        )}
         <Text style={styles.title}>🎮 Connect</Text>
         <Text style={styles.subtitle}>Für Xbox, PlayStation & Nintendo Switch (Bedrock)</Text>
 
@@ -141,6 +146,7 @@ export default function ConnectScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.lg, alignItems: "stretch" },
+  backLink: { fontSize: 13, color: colors.textMuted, textDecorationLine: "underline" },
   title: { fontSize: 26, fontWeight: "700", color: colors.gold },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: -spacing.sm },
 
