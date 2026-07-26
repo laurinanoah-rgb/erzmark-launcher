@@ -1,5 +1,75 @@
 # Erzmark App – Feature-Roadmap & Hype-Ideen
 
+## "Connect"-Feature: Bedrock-Konsolen-DNS-Redirect (26.07.2026, Plan)
+
+App-seitig fertig: `src/screens/ConnectScreen.jsx` (Tab, einklappbares Info-Panel,
+Statustext nur wenn aktiv, großer Start/Stop-Button) + `src/api/connect.js`
+(`GET/POST /connect/status|start|stop` gegen die `app-api`). Backend fehlt noch
+komplett - dieser Abschnitt ist der abgestimmte technische Plan dafür, bevor am
+Live-Server etwas gebaut wird.
+
+**Warum nicht "App hostet den DNS-Server selbst im LAN" (Ursprungsidee):**
+Konsolen können jede erreichbare IP als DNS-Server eintragen, nicht nur eine im
+selben LAN - ein zentral gehosteter Dienst auf dem Erzmark-Server funktioniert
+identisch und ist die tatsächliche Funktionsweise von BedrockConnect/OPSucht
+(die App zeigt nur die IP an, hostet sie nicht selbst). Auf dem Handy wäre das
+zudem kaum umsetzbar: Port 53 binden braucht auf Android Root, auf iOS gibt es
+dafür keine öffentliche API.
+
+**Architektur-Blocker (live am 26.07.2026 auf 162.55.27.161 geprüft):**
+Der Server hat nur eine öffentliche IPv4, kein IPv6. Port UDP 19132 ist bereits
+vom echten Bedrock-Server (Geyser/Floodgate, laufender CloudNet-Java-Prozess)
+belegt und in der Firewall offen. Konsolen verbinden sich für den
+"Featured Servers"-Menüeintrag fest auf Port 19132 der jeweiligen Ziel-IP (im
+Client hart codiert) - ein zweiter Dienst auf Port 19132 derselben IP würde mit
+dem echten Server kollidieren.
+
+**Lösung, die eine Kaufentscheidung braucht (noch offen):** Eine zusätzliche
+Hetzner-IPv4 (~1 €/Monat) am selben Server dazubuchen. Der Redirect-Dienst
+läuft auf dieser zweiten IP:19132, der echte Server bleibt unangetastet auf der
+ersten IP:19132. Erst wenn die IP existiert, kann der Server-Teil umgesetzt
+werden.
+
+**Geplante Komponenten (sobald IP vorhanden):**
+1. **DNS-Override** auf der zweiten IP, Port 53: `dnsmasq` (bewährt, kein
+   Custom-Code nötig) mit `address=/<bekannte Konsolen-Featured-Server-Domains>/<zweite-IP>`
+   für die fest im Konsolen-Client hinterlegten Domains, alles andere normal an
+   einen echten Resolver (z. B. 1.1.1.1) weitergeleitet - Konsole verliert
+   dadurch keine sonstige Netzwerkfunktion.
+2. **RakNet-"Fake-Server"-Stub** auf derselben zweiten IP, Port 19132: zeigt der
+   Konsole EINEN Menüeintrag ("Erzmark"), sendet nach Auswahl ein
+   RakNet-Transfer-Paket zur echten Server-IP:19132 - danach läuft das
+   Gameplay direkt Konsole↔Erzmark-Server, kein Traffic-Umweg, keine
+   Performance-Einbuße. Nicht selbst neu implementieren (Bedrock-/RakNet-
+   Protokoll ist fehleranfällig ohne echte Konsole zum Testen) - stattdessen
+   das etablierte Open-Source-Projekt "BedrockConnect" (Pugmatt, MIT-Lizenz,
+   Java) mit einem einzigen Server-Eintrag konfigurieren.
+3. **Laravel-Endpunkte** (`/connect/status|start|stop` unter `app-api`):
+   - `status`: echter Health-Check (systemd-Status von dnsmasq + BedrockConnect-
+     Service, z. B. per `systemctl is-active` via SSH-Trigger oder einem
+     kleinen internen Status-Endpoint des Java-Dienstes), liefert
+     `{ active, dnsHost, expiresAt }`.
+   - `start`/`stop`: **kein** Server-seitiges Ein-/Ausschalten des gemeinsamen
+     Dienstes (der läuft dauerhaft für alle Spieler, ein einzelner "Stop" darf
+     ihn nicht für andere abschalten) - stattdessen nur derselbe Health-Check
+     plus optionalem Nutzungs-Log. Der Button in der App spiegelt damit trotzdem
+     den echten Status wider (fällt bei nicht erreichbarem Dienst zurück in
+     Grün + Fehlermeldung, wie in der Spec gefordert) - ohne ein fragiles
+     Pro-Spieler-Freischalt-System (z. B. IP-Allowlist via iptables), das bei
+     CGNAT/Mehrfachhaushalten ohnehin nicht zuverlässig wäre.
+
+**Update 26.07.2026: zweite IPv4 gekauft.** `162.55.27.148` (Gateway
+`162.55.27.129`, Maske `255.255.255.192` = /26), an denselben Hetzner-Server
+angehängt. Damit ist der Architektur-Blocker gelöst - `dnsmasq` +
+BedrockConnect-Stub können auf `162.55.27.148:53`/`:19132` konfiguriert
+werden, ohne den echten Bedrock-Server auf der Haupt-IP (`162.55.27.161`)
+anzufassen. **Noch offen**: die IP muss auf dem Server als zusätzliche
+Adresse auf dem Netzwerk-Interface eingerichtet werden (`ip addr add
+162.55.27.148/26 dev enp34s0` + persistent in der Netzwerk-Config), dann
+Umsetzung der drei Komponenten (mit vorherigem Backup, schrittweiser
+Bestätigung, Live-Verifikation nach jeder Änderung).
+
+
 ## MVP (v0.1) – das Nötigste, was funktionieren muss
 
 1. Login mit Minecraft-Account (Microsoft-OAuth2, wie Launcher).

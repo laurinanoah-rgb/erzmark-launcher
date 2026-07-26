@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, Image, Pressable, TextInput, StyleSheet, Animated, Easing, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
+import * as Sharing from "expo-sharing";
+import { captureRef } from "react-native-view-shot";
+import SkinViewer3D from "../components/SkinViewer3D";
+import CharacterCard from "../components/CharacterCard";
 import {
   getMyProfiles,
   uploadProfilePhoto,
@@ -110,10 +114,12 @@ function StatTile({ icon, value, label, index }) {
  * Lädt dieselben Felder wie ProfileCard.jsx/HomeScreen.jsx, nur größer und
  * vollständiger dargestellt statt als kompakte Dashboard-Karte.
  *
- * Bewusst NOCH KEIN 3D-Skin-Viewer und KEIN "Karte teilen"-Export - beides
- * bräuchte eine neue native Abhängigkeit (z.B. react-native-webview für
- * skinview3d, react-native-view-shot fürs Teilen), die noch nicht im Projekt
- * installiert ist und einen neuen EAS-Build nötig macht. Siehe HANDOFF.md.
+ * 3D-Skin-Viewer + "Karte teilen" (26.07.2026, HANDOFF TODO #9): eingebetteter
+ * skinview3d in einer WebView (SkinViewer3D.jsx) als aufklappbare Alternative
+ * zum 2D-Ring, sowie ein per react-native-view-shot gerenderter Export
+ * (CharacterCard.jsx) über den System-Share-Dialog (expo-sharing). Alle drei
+ * sind NEUE native Abhängigkeiten - braucht einen neuen EAS-Build, kein
+ * reines OTA-Update mehr (siehe HANDOFF.md/PLANNING.md).
  *
  * Profilbild/Titelbild (19.07.2026, Nutzerwunsch): eigenes, hochladbares
  * Bild PRO Charakterprofil (nicht pro Account) - ersetzt/überlagert den
@@ -134,6 +140,11 @@ export default function ProfileScreen() {
   const [unlockedIds, setUnlockedIds] = useState(new Set());
   const [customizationSaving, setCustomizationSaving] = useState(false);
   const [customizationError, setCustomizationError] = useState(null);
+
+  const [show3D, setShow3D] = useState(false);
+  const [sharingCard, setSharingCard] = useState(false);
+  const [shareError, setShareError] = useState(null);
+  const cardRef = useRef(null);
 
   const heroFade = useRef(new Animated.Value(0)).current;
   const heroScale = useRef(new Animated.Value(0.92)).current;
@@ -275,6 +286,24 @@ export default function ProfileScreen() {
     }
   }
 
+  async function handleShareCard() {
+    setShareError(null);
+    setSharingCard(true);
+    try {
+      const uri = await captureRef(cardRef, { format: "png", quality: 0.95 });
+      const available = await Sharing.isAvailableAsync();
+      if (!available) {
+        setShareError("Teilen wird auf diesem Gerät nicht unterstützt.");
+        return;
+      }
+      await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Charakterkarte teilen" });
+    } catch (err) {
+      setShareError(err?.message ?? String(err));
+    } finally {
+      setSharingCard(false);
+    }
+  }
+
   useEffect(() => {
     if (activeProfile === undefined) return;
     Animated.parallel([
@@ -303,6 +332,9 @@ export default function ProfileScreen() {
   const className = prettifyClassName(activeProfile.className);
   const lastPlayed = formatLastPlayed(activeProfile.lastPlayedAt);
   const rankBadge = activeProfile.rankIconUrl ? null : getRankBadge(activeProfile.rankName);
+  const featuredStickers = catalog.filter((entry) =>
+    (customization?.featuredAchievementIds ?? []).includes(entry.id)
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -378,7 +410,19 @@ export default function ProfileScreen() {
               .filter(Boolean)
               .join(" · ") || "Kein Klassenprofil aktiv"}
           </Text>
+
+          <View style={styles.heroActionsRow}>
+            <Pressable style={styles.heroActionBtn} onPress={() => setShow3D((v) => !v)}>
+              <Text style={styles.heroActionText}>{show3D ? "2D-Skin" : "🧊 3D-Ansicht"}</Text>
+            </Pressable>
+            <Pressable style={styles.heroActionBtn} onPress={handleShareCard} disabled={sharingCard}>
+              <Text style={styles.heroActionText}>{sharingCard ? "Erstellt…" : "📤 Karte teilen"}</Text>
+            </Pressable>
+          </View>
+          {shareError && <Text style={styles.error}>{shareError}</Text>}
         </Animated.View>
+
+        {show3D && accountUuid && <SkinViewer3D skinUuid={accountUuid} />}
 
         {customization && (
           <View style={styles.customizationCard}>
@@ -456,6 +500,22 @@ export default function ProfileScreen() {
             <Text style={styles.footerText}>Zuletzt gespielt: {lastPlayed}</Text>
           </View>
         )}
+
+        {/* Ausserhalb des sichtbaren Bereichs, aber weiterhin gerendert/
+            layoutet - react-native-view-shot braucht eine echte native View
+            zum Einfangen, "display: none" wuerde das verhindern. */}
+        <View style={styles.hiddenCardWrap} pointerEvents="none">
+          <CharacterCard
+            ref={cardRef}
+            accountUuid={accountUuid}
+            name={activeProfile.name}
+            className={className}
+            level={activeProfile.level}
+            rankBadge={rankBadge}
+            rankIconUrl={activeProfile.rankIconUrl}
+            stickers={featuredStickers}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -545,6 +605,17 @@ const styles = StyleSheet.create({
   rankBadge: { borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 2 },
   rankBadgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase", color: "#fff" },
   subline: { fontSize: 14, color: colors.textMuted },
+  heroActionsRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  heroActionBtn: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.goldSoft,
+  },
+  heroActionText: { fontSize: 12, fontWeight: "700", color: colors.gold },
+  hiddenCardWrap: { position: "absolute", top: -9999, left: 0, opacity: 0 },
   pouchCard: {
     backgroundColor: colors.panel,
     borderRadius: radius.md,

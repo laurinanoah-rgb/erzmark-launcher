@@ -28,6 +28,7 @@ import {
   deleteGuildPostComment,
 } from "../api/guilds";
 import { getStoredToken, getAccountUuid } from "../api/auth";
+import { getEcho } from "../realtime/echo";
 import { colors, radius, spacing } from "../theme";
 
 const PERMISSION_LABELS = {
@@ -221,7 +222,7 @@ export default function GuildListScreen() {
         }}
       >
         {activeTab === "chat" ? (
-          <GuildChatPanel token={token} />
+          <GuildChatPanel token={token} guildTag={guild.tag} />
         ) : activeTab === "posts" ? (
           <GuildPostsTab token={token} myUuid={myUuid} can={can} />
         ) : (
@@ -857,7 +858,7 @@ function GuildPostsTab({ token, myUuid, can }) {
  * KeyboardAvoidingView analog zu ModalShell, damit das Eingabefeld nicht
  * hinter der Tastatur verschwindet.
  */
-function GuildChatPanel({ token }) {
+function GuildChatPanel({ token, guildTag }) {
   const [messages, setMessages] = useState(undefined);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -866,6 +867,27 @@ function GuildChatPanel({ token }) {
     if (!token) return;
     getGuildChatHistory(token).then(setMessages).catch(() => setMessages([]));
   }, [token]);
+
+  // Live-Nachrichten via Reverb (26.07.2026) statt reinem Request/Response -
+  // Kanal ist privat (routes/channels.php auf dem Server prueft echte
+  // Gildenmitgliedschaft), Event-Name ".guild.message" mit fuehrendem Punkt,
+  // da GuildMessageSent::broadcastAs() einen eigenen Namen setzt statt des
+  // Klassennamens. Eigene, gerade selbst gesendete Nachricht (siehe
+  // handleSend) kommt hier ueber den Kanal doppelt zurueck - per id gefiltert.
+  useEffect(() => {
+    if (!token || !guildTag) return;
+    const echo = getEcho(token);
+    const channel = echo.private(`guild.${guildTag}`);
+    channel.listen(".guild.message", (payload) => {
+      setMessages((prev) => {
+        if ((prev ?? []).some((m) => m.id === payload.id)) return prev;
+        return [...(prev ?? []), payload];
+      });
+    });
+    return () => {
+      echo.leave(`guild.${guildTag}`);
+    };
+  }, [token, guildTag]);
 
   async function handleSend() {
     if (!draft.trim() || sending) return;

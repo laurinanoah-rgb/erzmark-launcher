@@ -13,10 +13,12 @@ import GuildListScreen from "../screens/GuildListScreen";
 import FriendsScreen from "../screens/FriendsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import AchievementsScreen from "../screens/AchievementsScreen";
+import ConnectScreen from "../screens/ConnectScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import SplashScreen from "../screens/SplashScreen";
 import TeamScreen from "../screens/TeamScreen";
 import { NotificationsProvider } from "../state/NotificationsContext";
+import { disconnectEcho } from "../realtime/echo";
 
 import { checkForAppUpdate } from "../api/updateCheck";
 import { getMyProfiles } from "../api/profiles";
@@ -37,12 +39,18 @@ const SPLASH_MIN_DURATION_MS = 2300;
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
 
+// "Connect"-Tab (Bedrock-DNS-Redirect) bleibt vorerst ausgeblendet - Backend
+// dafür existiert noch nicht (blockiert auf den Kauf einer zweiten Server-IP,
+// siehe erzmark-app-mobile/PLANNING.md, Abschnitt "Connect"-Feature).
+const CONNECT_ENABLED = false;
+
 const TAB_ICONS = {
   Home: "🏠",
   Gilden: "🛡️",
   Freunde: "👥",
   Profil: "🙂",
   Erfolge: "🏆",
+  Connect: "🎮",
   Team: "🛠️",
   Einstellungen: "⚙️",
 };
@@ -64,6 +72,7 @@ function MainTabs({ onLogout, onSwitchProfile, onSwitchAccount, onAddAccount, is
       <Tabs.Screen name="Freunde" component={FriendsScreen} />
       <Tabs.Screen name="Profil" component={ProfileScreen} />
       <Tabs.Screen name="Erfolge" component={AchievementsScreen} />
+      {CONNECT_ENABLED && <Tabs.Screen name="Connect" component={ConnectScreen} />}
       {isStaff && <Tabs.Screen name="Team" component={TeamScreen} />}
       <Tabs.Screen name="Einstellungen">
         {() => (
@@ -170,12 +179,14 @@ export default function AppNavigator() {
   // wechselt die App automatisch zum ersten verbleibenden (siehe
   // auth.js::removeAccount), statt komplett zum Login-Screen zu springen.
   async function handleLogout() {
+    disconnectEcho();
     const remaining = await logout();
     setToken(remaining?.token ?? null);
     setActiveProfileUuid(remaining?.activeProfileUuid ?? null);
   }
 
   async function handleSwitchAccount(uuid) {
+    disconnectEcho();
     const result = await switchAccount(uuid);
     setToken(result.token);
     setActiveProfileUuid(result.activeProfileUuid);
