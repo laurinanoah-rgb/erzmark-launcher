@@ -91,7 +91,10 @@ export function startLanBroadcast() {
       return;
     }
 
-    const s = dgram.createSocket({ type: "udp4", reusePort: true });
+    // reusePort war hier vorher gesetzt, ist auf Android in react-native-udp aber
+    // schlecht getestet (mehrere gemeldete Release-Build-Abstuerze/kryptische native
+    // Fehler damit) - wir brauchen es ohnehin nicht (nur eine Bind-Instanz pro App).
+    const s = dgram.createSocket({ type: "udp4" });
     let settled = false;
 
     s.once("error", (err) => {
