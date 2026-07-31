@@ -1,4 +1,5 @@
 import dgram from "react-native-udp";
+import { Buffer } from "buffer";
 
 /**
  * Bedrock-LAN-Discovery-Responder (26.07.2026, "Connect"-Feature v2).
