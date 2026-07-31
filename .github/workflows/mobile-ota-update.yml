@@ -8,6 +8,13 @@ name: Erzmark Mobile – OTA-Update veröffentlichen
 # Spielern landet. Reine JS-Änderungen (UI, Bugfixes) reichen für ein
 # OTA-Update - native Änderungen (neue Module/Permissions) brauchen
 # stattdessen einen neuen Build, siehe mobile-build.yml.
+#
+# Schutz seit 31.07.2026: Der automatische Push-Trigger überspringt das
+# OTA-Update, wenn package.json/package-lock.json/app.json/app.config.js/
+# eas.json (oder android/ios) sich geändert haben - diese Dateien signalisieren
+# native Änderungen, die auf bereits installierten alten Builds sonst zum
+# Absturz beim App-Start führen (siehe react-native-udp-Vorfall, HANDOFF.md).
+# Ein manueller workflow_dispatch-Lauf ignoriert diese Sperre bewusst.
 on:
   push:
     branches: [main]
@@ -36,6 +43,8 @@ jobs:
         working-directory: erzmark-app-mobile
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Node.js einrichten
         uses: actions/setup-node@v4
@@ -45,13 +54,48 @@ jobs:
       - name: Abhängigkeiten installieren
         run: npm ci
 
+      # Verhindert genau den Bug vom 27.07.2026: react-native-udp wurde als
+      # neue native Abhängigkeit ergänzt, aber der automatische Push-Trigger
+      # hat trotzdem ein OTA-Update auf den preview-Kanal veröffentlicht -
+      # das JS-Bundle hat dann auf bereits installierten (älteren) nativen
+      # Builds beim Start gecrasht, weil das native Modul dort fehlte. Bei
+      # Änderungen an package.json/package-lock.json/app.json/app.config.js/
+      # eas.json (oder versehentlich committeten android/ios-Ordnern) wird
+      # der automatische Push-Trigger deshalb übersprungen - ein manueller
+      # workflow_dispatch-Lauf ist davon NICHT betroffen (bewusste, explizite
+      # Aktion, z.B. nachdem der passende native Build schon installiert ist).
+      - name: Native-relevante Änderungen prüfen
+        id: native-check
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BEFORE="HEAD~1"
+          fi
+          CHANGED=$(git diff --name-only "$BEFORE" "${{ github.sha }}" -- \
+            package.json package-lock.json app.json app.config.js eas.json android ios || true)
+          echo "Geänderte native-relevante Dateien:"
+          echo "$CHANGED"
+          if [ -n "$CHANGED" ]; then
+            echo "has_native_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_native_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Hinweis bei übersprungenem Update
+        if: github.event_name == 'push' && steps.native-check.outputs.has_native_changes == 'true'
+        run: |
+          echo "::warning::OTA-Update übersprungen - native Änderungen erkannt (package.json/package-lock.json/app.json/app.config.js/eas.json/android/ios). Erst einen neuen Build über 'mobile-build.yml' (Actions-Tab, Profil preview) ziehen und auf den Testgeräten installieren, danach bei Bedarf diesen Workflow manuell (workflow_dispatch) für weitere JS-Updates auslösen."
+
       - name: EAS CLI einrichten
+        if: github.event_name != 'push' || steps.native-check.outputs.has_native_changes != 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: OTA-Update veröffentlichen
+        if: github.event_name != 'push' || steps.native-check.outputs.has_native_changes != 'true'
         run: |
           CHANNEL="${{ github.event.inputs.channel || 'preview' }}"
           MESSAGE="${{ github.event.inputs.message }}"
