@@ -3,7 +3,7 @@ import FriendsList from "./FriendsList.jsx";
 import ComingSoonPanel from "./ComingSoonPanel.jsx";
 import DockTabs from "./DockTabs.jsx";
 
-function FriendsTabIcon() {
+export function FriendsTabIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <circle cx="9" cy="8" r="2.6" />
@@ -14,7 +14,7 @@ function FriendsTabIcon() {
   );
 }
 
-function GuildTabIcon() {
+export function GuildTabIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M12 3 3 7.5 12 12l9-4.5L12 3Z" />
@@ -23,7 +23,7 @@ function GuildTabIcon() {
   );
 }
 
-function MapTabIcon() {
+export function MapTabIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z" />
@@ -39,45 +39,57 @@ function MapTabIcon() {
  * existieren zwar bereits über MMOCore, der Lese-Endpunkt dafür ist aber noch
  * nicht gebaut; die Karte existiert serverseitig bislang gar nicht.
  */
-export default function SocialDock() {
+export function useSocialDockModules(onOpenFriends) {
   const [friendsOnline, setFriendsOnline] = useState(0);
 
-  const tabs = [
+  return [
     {
       id: "friends",
-      label: "Freunde",
+      label: "Gemeinschaft",
       Icon: FriendsTabIcon,
       color: "blue",
       badge: friendsOnline > 0 ? friendsOnline : null,
-      content: <FriendsList onOnlineCountChange={setFriendsOnline} />,
+      content: (
+        <div className="erzmark-social-friends-preview">
+          <FriendsList onOnlineCountChange={setFriendsOnline} />
+          <button type="button" className="erzmark-social-open-lounge" onClick={onOpenFriends}>
+            <span>Freundeslounge öffnen</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      ),
     },
     {
       id: "guild",
-      label: "Gilde",
+      label: "Gildenrat",
       Icon: GuildTabIcon,
       color: "gold",
       content: (
         <ComingSoonPanel
           icon={<GuildTabIcon />}
-          title="Gilden-Ansicht"
-          description="Deine MMOCore-Gilde wird hier bald mit Mitgliedern und Rang angezeigt."
+          title="Der Ratssaal"
+          description="Deine Gilde versammelt sich hier bald mit Wappen, Mitgliedern und Rang."
         />
       ),
     },
     {
       id: "map",
-      label: "Karte",
+      label: "Reichskarte",
       Icon: MapTabIcon,
       color: "green",
       content: (
         <ComingSoonPanel
           icon={<MapTabIcon />}
-          title="Interaktive Karte"
-          description="Eine Live-Karte der Erzmark-Welt ist in Planung."
+          title="Karte des Grenzlands"
+          description="Die lebendige Karte von Erzmark wird hier bald ihre Wege und Geheimnisse offenbaren."
         />
       ),
     },
   ];
+}
+
+export default function SocialDock({ onOpenFriends }) {
+  const tabs = useSocialDockModules(onOpenFriends);
 
   return <DockTabs tabs={tabs} />;
 }

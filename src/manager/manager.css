@@ -1,0 +1,571 @@
+/*
+ * Gestaltung des Team-Bereichs nach Abschnitt 9 des Master-Dokuments.
+ *
+ * Leitsatz: Magie in der Huelle, Nuechternheit im Kern. Magisch wird, was man
+ * selten sieht - der Login, der Wechsel zwischen Ebenen. Klar bleibt, was man
+ * staendig braucht: Konsole, Logs, Tabellen. Dort keine Animation.
+ *
+ * Alle Klassen und Variablen tragen das Praefix "mgr-", und die Farbwerte
+ * haengen an .mgr-wurzel statt an :root. Der Launcher bringt sein eigenes
+ * theme.css mit; ohne diese Trennung wuerden sich beide gegenseitig umfaerben.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Bitter:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+.mgr-wurzel {
+  /* Grundflaeche: dunkler Stein, nicht reines Schwarz. */
+  --mgr-stein-tief: #14100E;
+  --mgr-stein: #1B1613;
+  --mgr-stein-hoch: #251E1A;
+  --mgr-kante: #3B302A;
+  --mgr-kante-hell: #55463C;
+
+  --mgr-text: #EFE6DB;
+  --mgr-text-leise: #A3948A;
+  --mgr-text-schwach: #6F625A;
+
+  /* Erz-Gluehen: Bernstein und Kupfer - ausdruecklich nicht das uebliche
+     Neonblau typischer Admin-Panels. */
+  --mgr-kupfer: #C87F3A;
+  --mgr-bernstein: #E0A458;
+  --mgr-gluehen: rgba(224, 164, 88, 0.09);
+  --mgr-gluehen-stark: rgba(224, 164, 88, 0.22);
+
+  --mgr-gut: #8FAC79;
+  --mgr-warnung: #D9A441;
+  --mgr-kritisch: #D2705F;
+
+  --mgr-schrift-anzeige: Bitter, Georgia, serif;
+  --mgr-schrift-text: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --mgr-schrift-fest: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', monospace;
+}
+
+.mgr-wurzel *, .mgr-wurzel *::before, .mgr-wurzel *::after { box-sizing: border-box; }
+
+
+h1, h2, h3 {
+  font-family: var(--mgr-schrift-anzeige);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--mgr-bernstein);
+  outline-offset: 2px;
+}
+
+/* --- Grundbausteine ------------------------------------------------------ */
+
+.mgr-knopf {
+  background: var(--mgr-stein-hoch);
+  color: var(--mgr-text);
+  border: 1px solid var(--mgr-kante);
+  border-radius: 3px;
+  padding: 0.5rem 0.95rem;
+  font-weight: 500;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.mgr-knopf:hover:not(:disabled) { border-color: var(--mgr-kante-hell); background: #2C2420; }
+.mgr-knopf:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.mgr-knopf-haupt {
+  background: linear-gradient(180deg, #C8813C 0%, #A9662C 100%);
+  border-color: #8E5522;
+  color: #1A1208;
+  font-weight: 600;
+}
+.mgr-knopf-haupt:hover:not(:disabled) { background: linear-gradient(180deg, #D48F49 0%, #B5712F 100%); }
+
+.mgr-knopf-gefahr { border-color: #7A3A32; color: var(--mgr-kritisch); }
+.mgr-knopf-gefahr:hover:not(:disabled) { background: rgba(210, 112, 95, 0.12); border-color: #9A4A40; }
+
+.mgr-feld {
+  width: 100%;
+  background: var(--mgr-stein-tief);
+  border: 1px solid var(--mgr-kante);
+  border-radius: 3px;
+  color: var(--mgr-text);
+  padding: 0.6rem 0.8rem;
+  font-family: inherit;
+  font-size: inherit;
+}
+.mgr-feld:focus { border-color: var(--mgr-kupfer); outline: none; }
+
+.mgr-etikett {
+  display: block;
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mgr-text-leise);
+  margin-bottom: 0.4rem;
+}
+
+.mgr-hinweis-kasten {
+  border: 1px solid var(--mgr-kante);
+  border-left: 3px solid var(--mgr-kupfer);
+  background: var(--mgr-gluehen);
+  border-radius: 3px;
+  padding: 0.85rem 1rem;
+  font-size: 0.92rem;
+}
+.mgr-hinweis-kasten.mgr-fehler { border-left-color: var(--mgr-kritisch); background: rgba(210, 112, 95, 0.1); }
+
+/* --- Anmeldung: das Erwachen --------------------------------------------- */
+
+.mgr-erwachen {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem;
+  /* Ein einzelnes, ruhiges Gluehen aus der Tiefe - kein Farbverlauf ueber die
+     ganze Flaeche, der nach Werbeseite aussieht. */
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 42%, var(--mgr-gluehen) 0%, transparent 70%),
+    var(--mgr-stein);
+}
+
+.mgr-erwachen-tafel {
+  width: 100%;
+  max-width: 25rem;
+  animation: auftauchen 700ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes auftauchen {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.mgr-erwachen-marke {
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--mgr-kupfer);
+  text-align: center;
+  margin-bottom: 0.9rem;
+}
+
+.mgr-erwachen-titel {
+  font-size: 1.85rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.mgr-erwachen-unterzeile {
+  text-align: center;
+  color: var(--mgr-text-leise);
+  font-size: 0.93rem;
+  margin: 0 0 1.9rem;
+}
+
+.mgr-erwachen-formular { display: flex; flex-direction: column; gap: 1rem; }
+
+/* --- Gerüst -------------------------------------------------------------- */
+
+.mgr-geruest { min-height: 100%; display: flex; flex-direction: column; }
+
+.mgr-kopfleiste {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.4rem;
+  border-bottom: 1px solid var(--mgr-kante);
+  background: var(--mgr-stein-tief);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.mgr-kopf-marke {
+  font-family: var(--mgr-schrift-anzeige);
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.mgr-kopf-marke span { color: var(--mgr-kupfer); }
+
+.mgr-brotkrumen {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.78rem;
+  color: var(--mgr-text-leise);
+}
+.mgr-brotkrumen button {
+  background: none;
+  border: none;
+  color: var(--mgr-text-leise);
+  padding: 0.1rem 0.2rem;
+  font-family: inherit;
+  font-size: inherit;
+}
+.mgr-brotkrumen button:hover { color: var(--mgr-bernstein); }
+
+.mgr-kopf-rechts { margin-left: auto; display: flex; align-items: center; gap: 0.9rem; }
+
+.mgr-siegel {
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mgr-bernstein);
+  border: 1px solid var(--mgr-kante-hell);
+  border-radius: 2px;
+  padding: 0.12rem 0.45rem;
+}
+
+.mgr-inhalt {
+  flex: 1;
+  padding: 1.9rem 1.4rem 3.5rem;
+  max-width: 78rem;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Uebergaenge beim Betreten einer Ebene - nicht bei jeder Aktion.
+   Was man fuenfzigmal am Tag sieht, darf nicht bremsen. */
+.mgr-ebene { animation: ebene-auf 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+@keyframes ebene-auf {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mgr-ebene, .mgr-erwachen-tafel { animation: none; }
+}
+
+/* --- Runenkreise: die halbrunden Anzeigen -------------------------------- */
+
+.mgr-runen-reihe {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.25rem;
+}
+
+.mgr-runenkreis {
+  background: var(--mgr-stein-hoch);
+  border: 1px solid var(--mgr-kante);
+  border-radius: 4px;
+  padding: 1rem 0.75rem 0.85rem;
+  text-align: center;
+}
+
+.mgr-runenkreis-zahl {
+  font-family: var(--mgr-schrift-fest);
+  font-size: 1.32rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.mgr-runenkreis-name {
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.64rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--mgr-text-leise);
+  margin-top: 0.55rem;
+}
+
+.mgr-runenkreis-zusatz {
+  font-size: 0.72rem;
+  color: var(--mgr-text-schwach);
+  margin-top: 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Kacheln (Ebene 1) --------------------------------------------------- */
+
+.mgr-kachel-gitter {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: 0.9rem;
+}
+
+.mgr-kachel {
+  text-align: left;
+  background: var(--mgr-stein-hoch);
+  border: 1px solid var(--mgr-kante);
+  border-radius: 4px;
+  padding: 1.1rem 1.15rem;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+.mgr-kachel:hover:not(:disabled) {
+  border-color: var(--mgr-kupfer);
+  transform: translateY(-2px);
+}
+.mgr-kachel:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.mgr-kachel-lore {
+  font-family: var(--mgr-schrift-anzeige);
+  font-size: 1.08rem;
+  font-weight: 600;
+  display: block;
+}
+
+/* Der nuechterne Begriff steht klein daneben, damit ein neuer Supporter
+   nicht raetseln muss (9.2). */
+.mgr-kachel-nuechtern {
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mgr-text-leise);
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.mgr-kachel-zusatz {
+  font-size: 0.84rem;
+  color: var(--mgr-text-schwach);
+  margin-top: 0.6rem;
+}
+
+/* --- Dienstliste (Ebene 2) ----------------------------------------------- */
+
+.mgr-dienst-gitter {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.9rem;
+}
+
+.mgr-dienst-feld {
+  text-align: left;
+  background: var(--mgr-stein-hoch);
+  border: 1px solid var(--mgr-kante);
+  border-radius: 4px;
+  padding: 1rem 1.1rem;
+  transition: border-color 140ms ease;
+}
+.mgr-dienst-feld:hover { border-color: var(--mgr-kupfer); }
+
+.mgr-dienst-kopf { display: flex; align-items: center; gap: 0.6rem; }
+
+.mgr-dienst-name {
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.98rem;
+  font-weight: 500;
+}
+
+.mgr-zustand-punkt {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--mgr-text-schwach);
+}
+.mgr-zustand-punkt.mgr-laeuft { background: var(--mgr-gut); box-shadow: 0 0 7px rgba(143, 172, 121, 0.55); }
+.mgr-zustand-punkt.mgr-startet { background: var(--mgr-warnung); }
+.mgr-zustand-punkt.mgr-aus { background: var(--mgr-kritisch); }
+
+.mgr-dienst-zeile {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.76rem;
+  color: var(--mgr-text-leise);
+  margin-top: 0.45rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Reiter (Ebene 3) ---------------------------------------------------- */
+
+.mgr-reiter-leiste {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--mgr-kante);
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.mgr-reiter {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--mgr-text-leise);
+  padding: 0.55rem 0.85rem;
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.76rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.mgr-reiter:hover { color: var(--mgr-text); }
+.mgr-reiter[aria-selected='true'] { color: var(--mgr-bernstein); border-bottom-color: var(--mgr-kupfer); }
+
+/* --- Konsole: hier keine Magie ------------------------------------------- */
+
+.mgr-konsole {
+  background: #0E0B0A;
+  border: 1px solid var(--mgr-kante);
+  border-radius: 3px;
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  padding: 0.8rem 0.95rem;
+  height: 26rem;
+  overflow-y: auto;
+  overflow-x: auto;
+  white-space: pre;
+  color: #D9CFC4;
+}
+
+.mgr-konsole-zeile { display: block; }
+.mgr-konsole-zeile.mgr-warnung { color: var(--mgr-warnung); }
+.mgr-konsole-zeile.mgr-fehler { color: var(--mgr-kritisch); }
+.mgr-konsole-zeile.mgr-eigen { color: var(--mgr-bernstein); }
+
+.mgr-konsole-eingabe {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+.mgr-konsole-eingabe input {
+  flex: 1;
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.82rem;
+}
+
+.mgr-konsole-leiste {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.72rem;
+  color: var(--mgr-text-leise);
+}
+
+/* --- Tabellen ------------------------------------------------------------ */
+
+.mgr-tabelle { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.mgr-tabelle th {
+  text-align: left;
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.66rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--mgr-text-leise);
+  font-weight: 500;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--mgr-kante);
+}
+.mgr-tabelle td {
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid rgba(59, 48, 42, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+.mgr-tabelle tr:hover td { background: rgba(224, 164, 88, 0.04); }
+
+.mgr-tabelle-rahmen { overflow-x: auto; }
+
+/* --- Kleinteile ---------------------------------------------------------- */
+
+.mgr-abschnitt-titel {
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--mgr-text-leise);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--mgr-kante);
+  margin-bottom: 1.15rem;
+}
+
+.mgr-leer {
+  color: var(--mgr-text-schwach);
+  font-size: 0.9rem;
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.mgr-laedt {
+  color: var(--mgr-text-leise);
+  font-family: var(--mgr-schrift-fest);
+  font-size: 0.78rem;
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.mgr-modal-grund {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 7, 0.78);
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  z-index: 50;
+}
+
+.mgr-modal {
+  background: var(--mgr-stein-hoch);
+  border: 1px solid var(--mgr-kante-hell);
+  border-radius: 4px;
+  padding: 1.5rem;
+  max-width: 27rem;
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+ * Der Team-Bereich als Vollbild-Ansicht im Launcher.
+ *
+ * Er deckt das Launcher-Fenster vollstaendig ab, statt sich einzubetten: Die
+ * drei Ebenen brauchen die ganze Flaeche, und ein Manager in einer Seitenleiste
+ * waere in der Konsole unbenutzbar.
+ * ------------------------------------------------------------------------- */
+
+.mgr-vollbild {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  overflow-y: auto;
+  background: var(--mgr-stein);
+  color: var(--mgr-text);
+  font-family: var(--mgr-schrift-text);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mgr-vollbild h1,
+.mgr-vollbild h2,
+.mgr-vollbild h3 {
+  font-family: var(--mgr-schrift-anzeige);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+  margin: 0;
+}
+
+.mgr-vollbild button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.mgr-vollbild button:focus-visible,
+.mgr-vollbild input:focus-visible,
+.mgr-vollbild a:focus-visible {
+  outline: 2px solid var(--mgr-bernstein);
+  outline-offset: 2px;
+}
+
+.mgr-vollbild p {
+  margin: 0 0 0.9rem;
+}
+
+.mgr-vollbild .mgr-geruest {
+  min-height: 100%;
+}

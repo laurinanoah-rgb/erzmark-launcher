@@ -44,6 +44,31 @@ pub struct LauncherSettings {
     /// synchron beim ersten Render gebraucht wird.
     #[serde(default = "default_perf_tier_override")]
     pub performance_tier_override: String,
+
+    /// Anzeigeprofil des Launchers: `"auto"`, `"16:9"` oder `"21:9"`.
+    /// Im Automatikmodus entscheidet die Web-Oberflaeche anhand von Fenster-
+    /// und Monitorformat. Die Defaults halten alte settings.json kompatibel.
+    #[serde(default = "default_display_preset")]
+    pub display_preset: String,
+    #[serde(default = "default_ui_scale")]
+    pub ui_scale: String,
+    #[serde(default = "default_text_scale")]
+    pub text_scale: String,
+    #[serde(default)]
+    pub high_contrast: bool,
+    #[serde(default)]
+    pub reduce_motion: bool,
+
+    /// Living-Hall-Atmosphäre. Alle Felder haben Defaults, damit vorhandene
+    /// settings.json-Dateien ohne Migration weiter funktionieren.
+    #[serde(default = "default_true")]
+    pub atmosphere_enabled: bool,
+    #[serde(default)]
+    pub ambient_sound: bool,
+    #[serde(default = "default_ambient_volume")]
+    pub ambient_volume: u8,
+    #[serde(default = "default_true")]
+    pub cursor_runes: bool,
 }
 
 fn default_perf_tier_override() -> String {
@@ -52,6 +77,22 @@ fn default_perf_tier_override() -> String {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_display_preset() -> String {
+    "auto".to_string()
+}
+
+fn default_ui_scale() -> String {
+    "normal".to_string()
+}
+
+fn default_text_scale() -> String {
+    "normal".to_string()
+}
+
+fn default_ambient_volume() -> u8 {
+    32
 }
 
 impl Default for LauncherSettings {
@@ -64,6 +105,15 @@ impl Default for LauncherSettings {
             notify_achievements: true,
             mute_ui_sounds: false,
             performance_tier_override: default_perf_tier_override(),
+            display_preset: default_display_preset(),
+            ui_scale: default_ui_scale(),
+            text_scale: default_text_scale(),
+            high_contrast: false,
+            reduce_motion: false,
+            atmosphere_enabled: true,
+            ambient_sound: false,
+            ambient_volume: default_ambient_volume(),
+            cursor_runes: true,
         }
     }
 }

@@ -1,3 +1,5 @@
+mod achievements;
+mod achievements_commands;
 mod auth;
 mod bugreport;
 mod bugreport_commands;
@@ -20,6 +22,10 @@ mod skin_commands;
 mod social;
 mod social_commands;
 mod state;
+mod talk;
+mod talk_commands;
+mod voice;
+mod voice_commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -65,6 +71,12 @@ pub fn run() {
             skin_commands::upload_skin_file,
             skin_commands::reset_skin,
             bugreport_commands::get_bug_report_context,
+            achievements_commands::get_achievements,
+            achievements_commands::get_achievement_stats,
+            achievements_commands::acknowledge_achievement,
+            voice_commands::get_voice_presence,
+            talk_commands::start_talk,
+            talk_commands::get_talk_status,
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten der Erzmark-Launcher-Anwendung");

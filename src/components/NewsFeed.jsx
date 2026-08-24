@@ -18,6 +18,13 @@ function formatDate(iso) {
   }
 }
 
+function getPostLabel(post) {
+  const details = [formatDate(post.published_at), post.author_name]
+    .filter(Boolean)
+    .join(", ");
+  return `${post.title}${details ? `. ${details}` : ""}. Weiterlesen`;
+}
+
 function PinIcon({ className }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
@@ -52,11 +59,14 @@ export default function NewsFeed() {
 
   return (
     <div className="erzmark-news">
-      <div className="erzmark-gallery-title">
-        <span>Neuigkeiten</span>
-        <button className="erzmark-link-btn" onClick={refresh} disabled={loading} title="Aktualisieren">
-          ↻
-        </button>
+      <div className="erzmark-herold-header">
+        <span className="erzmark-herold-seal" aria-hidden="true">E</span>
+        <div>
+          <small>Stimmen aus dem Reich</small>
+          <strong>Der Erzmark-Herold</strong>
+          <span>{loading ? "Die Druckerpresse läuft…" : `${posts.length} Depeschen im Archiv`}</span>
+        </div>
+        <button className="erzmark-companion-refresh" onClick={refresh} disabled={loading} title="Herold aktualisieren" aria-label="Herold aktualisieren">↻</button>
       </div>
 
       {loading && <p className="erzmark-hint">Lädt…</p>}
@@ -67,29 +77,33 @@ export default function NewsFeed() {
       )}
 
       <div className="erzmark-news-list">
-        {posts.map((post) => (
+        {posts.map((post, index) => (
           <button
             key={post.id}
-            className="erzmark-news-card"
+            className={`erzmark-news-card${index === 0 ? " is-lead" : ""}`}
             onClick={() => openExternalUrl(post.url)}
             title={post.title}
+            aria-label={getPostLabel(post)}
           >
-            {post.thumbnail_data_url && (
-              <img className="erzmark-news-thumb" src={post.thumbnail_data_url} alt="" />
-            )}
-            <div className="erzmark-news-body">
-              <div className="erzmark-news-meta">
-                {post.is_pinned && <PinIcon className="erzmark-news-pin" />}
-                <span>{formatDate(post.published_at)}</span>
-                <span>·</span>
-                <span>{post.author_name}</span>
+            <div className="erzmark-news-card-visual" aria-hidden="true">
+              <span className="erzmark-news-folio">{String(index + 1).padStart(2, "0")}</span>
+              {post.thumbnail_data_url && (
+                <img className="erzmark-news-thumb" src={post.thumbnail_data_url} alt="" />
+              )}
+              <div className="erzmark-news-body">
+                <div className="erzmark-news-meta">
+                  {post.is_pinned && <PinIcon className="erzmark-news-pin" />}
+                  <span>{formatDate(post.published_at)}</span>
+                  <span>·</span>
+                  <span>{post.author_name}</span>
+                </div>
+                <h3 className="erzmark-news-title">{post.title}</h3>
+                <div
+                  className="erzmark-news-excerpt"
+                  dangerouslySetInnerHTML={{ __html: post.excerpt_html }}
+                />
+                <span className="erzmark-news-readmore">Siegel brechen <i>→</i></span>
               </div>
-              <h3 className="erzmark-news-title">{post.title}</h3>
-              <div
-                className="erzmark-news-excerpt"
-                dangerouslySetInnerHTML={{ __html: post.excerpt_html }}
-              />
-              <span className="erzmark-news-readmore">Weiterlesen →</span>
             </div>
           </button>
         ))}

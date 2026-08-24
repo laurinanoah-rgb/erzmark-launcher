@@ -119,3 +119,24 @@ pub const ERZMARK_PROFILE_COVER_URL: &str = "https://erzmark.de/api/app-api/prof
 /// Account-Zeile wie Profilbild/Titelbild, siehe ProfileController::
 /// getCustomization()/updateCustomization() im Backend.
 pub const ERZMARK_PROFILE_CUSTOMIZATION_URL: &str = "https://erzmark.de/api/app-api/profile/customization";
+
+/// Echtes Achievement-Backend (23.08.2026) - loest den bisherigen reinen
+/// Client-Mock in `achievements.js` ab, siehe AchievementController.php.
+pub const ERZMARK_ACHIEVEMENTS_URL: &str = "https://erzmark.de/api/app-api/achievements";
+pub const ERZMARK_ACHIEVEMENTS_STATS_URL: &str = "https://erzmark.de/api/app-api/achievements/stats";
+/// `{achievementId}` wird beim Aufruf angehaengt, siehe `achievements.rs`.
+pub const ERZMARK_ACHIEVEMENTS_ACK_URL_BASE: &str = "https://erzmark.de/api/app-api/achievements";
+
+/// Echte Voice-Presence der Freunde (23.08.2026) - liefert, wer von den
+/// Freunden des eingeloggten Users laut R.U.D.O.L.F. (Discord-Bot) gerade in
+/// einem Voice-Channel ist. Siehe `voice.rs`/TalkContext.jsx.
+pub const ERZMARK_VOICE_PRESENCE_URL: &str = "https://erzmark.de/api/app-api/voice/presence";
+
+/// Echter Talk-Start (23.08.2026, Ausbaustufe nach der Voice-Presence-Anzeige
+/// oben) - stößt über R.U.D.O.L.F. das Erstellen eines privaten Discord-
+/// Voice-Channels für den eingeloggten Spieler + einen Freund an. Backend
+/// (TalkController.php) wird parallel von einem anderen Agenten gebaut - die
+/// Endpunkt-Form hier folgt dem abgestimmten Plan. Siehe `talk.rs`.
+pub const ERZMARK_TALK_START_URL: &str = "https://erzmark.de/api/app-api/talk/start";
+/// `{requestId}` wird beim Aufruf angehängt, siehe `talk.rs`.
+pub const ERZMARK_TALK_STATUS_URL_BASE: &str = "https://erzmark.de/api/app-api/talk/status";

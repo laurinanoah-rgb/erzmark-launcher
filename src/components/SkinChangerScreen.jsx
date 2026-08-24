@@ -8,7 +8,7 @@ import SkinMirror from "./SkinMirror.jsx";
  * Bis die Mojang-API-Freischaltung durch ist, schlagen alle Aktionen hier
  * erwartungsgemäß mit einer Fehlermeldung fehl.
  */
-export default function SkinChangerScreen({ onClose }) {
+export function SkinChangerContent() {
   const [currentUrl, setCurrentUrl] = useState(null);
   const [variant, setVariant] = useState("classic");
   const [urlInput, setUrlInput] = useState("");
@@ -51,19 +51,22 @@ export default function SkinChangerScreen({ onClose }) {
   }
 
   return (
-    <div className="erzmark-modal-backdrop" onClick={onClose}>
-      <div className="erzmark-modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="erzmark-modal-header">
-          <h2>Skin ändern</h2>
-          <button className="erzmark-modal-close" onClick={onClose} aria-label="Schließen">
-            ✕
-          </button>
+    <div className="erzmark-skin-settings">
+      <div className="erzmark-skin-settings-preview">
+        <div className="erzmark-skin-settings-light" aria-hidden="true" />
+        <SkinMirror skinUrl={currentUrl} width={280} height={360} />
+        <div className="erzmark-skin-settings-caption">
+          <strong>Aktueller Minecraft-Skin</strong>
+          <span>Änderungen werden direkt auf deinen Minecraft-Account übertragen.</span>
         </div>
+      </div>
 
-        <div className="erzmark-modal-body">
-          <div className="erzmark-skin-preview">
-            <SkinMirror skinUrl={currentUrl} />
-          </div>
+      <div className="erzmark-skin-settings-controls">
+        <div className="erzmark-settings-section-heading">
+          <span className="erzmark-settings-kicker">Minecraft</span>
+          <h3>Skin anpassen</h3>
+          <p>Wähle das Modell und lade eine klassische Minecraft-Skin-Datei hoch.</p>
+        </div>
 
           <section className="erzmark-settings-section">
             <h3>Modell</h3>
@@ -91,7 +94,11 @@ export default function SkinChangerScreen({ onClose }) {
 
           <section className="erzmark-settings-section">
             <h3>Datei hochladen</h3>
-            <input type="file" accept="image/png" onChange={handleFileChange} disabled={busy} />
+            <label className="erzmark-skin-upload-button">
+              <span>{busy ? "Skin wird verarbeitet…" : "PNG-Datei auswählen"}</span>
+              <small>64 × 64 oder kompatibles Minecraft-Format</small>
+              <input type="file" accept="image/png" onChange={handleFileChange} disabled={busy} hidden />
+            </label>
           </section>
 
           <section className="erzmark-settings-section">
@@ -126,11 +133,23 @@ export default function SkinChangerScreen({ onClose }) {
 
           {message && <p className="erzmark-hint">{message}</p>}
           {error && <p className="erzmark-error">{error}</p>}
-        </div>
+      </div>
+    </div>
+  );
+}
 
-        <div className="erzmark-modal-footer">
-          <span className="erzmark-hint">Wirkt direkt auf deinen Minecraft-Account.</span>
+// Der Skin-Wechsler lebt ab Phase 1 in Einstellungen → Minecraft & Skin.
+// Der Wrapper bleibt als kompatibler Export bestehen, wird von MainScreen
+// aber nicht mehr als eigener Navigationspunkt verwendet.
+export default function SkinChangerScreen({ onClose }) {
+  return (
+    <div className="erzmark-modal-backdrop" onClick={onClose}>
+      <div className="erzmark-modal-panel erzmark-modal-panel-wide" onClick={(e) => e.stopPropagation()}>
+        <div className="erzmark-modal-header">
+          <h2>Skin ändern</h2>
+          <button className="erzmark-modal-close" onClick={onClose} aria-label="Schließen">✕</button>
         </div>
+        <div className="erzmark-modal-body"><SkinChangerContent /></div>
       </div>
     </div>
   );

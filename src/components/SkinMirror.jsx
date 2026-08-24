@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SkinViewer, IdleAnimation, PlayerAnimation } from "skinview3d";
 import { getPerformanceTier } from "../utils/performanceTier.js";
 import { drawSkinPaperDoll } from "../utils/skinPaperDoll.js";
 import { subscribeTabHover } from "../state/skinMirrorMood.js";
 import { getCharacterProfiles } from "../api/profiles.js";
 import { getFriends, getFriendSkinUrl } from "../api/friends.js";
+import { getAchievements } from "../api/achievements.js";
 
 // Alle X Sekunden wird ein zufälliges Emote abgespielt (Dauer je nach Emote).
 const EMOTE_INTERVAL_SECONDS = 9;
@@ -45,6 +46,74 @@ const GLITCH_DURATION_MS = 1300;
 // bereits verfügbare Fortschrittswert.
 const POSE_TIER_TIMID_MAX_LEVEL = 9;
 const POSE_TIER_CONFIDENT_MIN_LEVEL = 25;
+
+const MIRROR_SCENE_STORAGE_KEY = "erzmark_skin_mirror_v2_scene";
+
+// Skin Mirror V2: Aufenthaltsorte werden nicht über erfundene Punkte, sondern
+// ausschließlich über echte serverseitige Erfolge freigeschaltet. Die Halle
+// bleibt als sicherer Startort immer verfügbar.
+const MIRROR_SCENE_DEFINITIONS = [
+  {
+    id: "hall",
+    rune: "ᛟ",
+    label: "Spiegelhalle",
+    kicker: "Ursprung",
+    categories: [],
+    story: "Die Spiegelhalle kennt deine Gestalt. Jede Reaktion hinterlässt nur für diesen Moment eine leise Resonanz.",
+  },
+  {
+    id: "hearth",
+    rune: "ᚷ",
+    label: "Bundfeuer",
+    kicker: "Gemeinschaft",
+    categories: ["social", "sozial", "community"],
+    lockedStory: "Ein echter Gemeinschaftserfolg entzündet später dieses Bundfeuer.",
+  },
+  {
+    id: "wilds",
+    rune: "ᚱ",
+    label: "Flüsterhain",
+    kicker: "Entdeckung",
+    categories: ["discovery", "entdeckung", "exploration"],
+    lockedStory: "Ein echter Entdeckungserfolg öffnet später den Pfad in den Flüsterhain.",
+  },
+  {
+    id: "forge",
+    rune: "ᛏ",
+    label: "Eidenschmiede",
+    kicker: "Meilenstein",
+    categories: ["milestones", "meilensteine", "gaming"],
+    lockedStory: "Ein echter Meilenstein lässt die Eidenschmiede später erwachen.",
+  },
+];
+
+const MIRROR_ACTIONS = [
+  { id: "greet", rune: "ᚹ", label: "Grüßen", emote: 0, message: "Dein Spiegelbild erkennt dich und erwidert den Gruß." },
+  { id: "listen", rune: "ᚨ", label: "Lauschen", emote: 2, message: "Für einen Augenblick lauscht dein Spiegelbild den Geräuschen dieses Ortes." },
+  { id: "oath", rune: "ᛉ", label: "Haltung", emote: 4, message: "Dein Spiegelbild richtet sich auf und bewahrt deinen gegenwärtigen Eid." },
+];
+
+function normaliseCategory(value) {
+  return String(value ?? "").trim().toLocaleLowerCase("de-DE");
+}
+
+function buildMirrorScenes(achievements) {
+  const unlocked = achievements.filter((achievement) => achievement?.unlocked);
+  return MIRROR_SCENE_DEFINITIONS.map((definition) => {
+    const proof = definition.categories.length === 0
+      ? null
+      : unlocked.find((achievement) => definition.categories.includes(normaliseCategory(achievement.category)));
+    const isUnlocked = definition.id === "hall" || Boolean(proof);
+    return {
+      ...definition,
+      unlocked: isUnlocked,
+      proof,
+      story: isUnlocked && proof
+        ? (proof.contextSentence || `„${proof.title}“ hat diesen Ort in deinem Spiegel geweckt.`)
+        : (definition.story || definition.lockedStory),
+    };
+  });
+}
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
@@ -308,7 +377,98 @@ export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes 
   const [glitchLine, setGlitchLine] = useState(null);
   const [glitching, setGlitching] = useState(false);
   const [friendsSkins, setFriendsSkins] = useState([]);
+  const [achievements, setAchievements] = useState([]);
+  const [achievementsLoaded, setAchievementsLoaded] = useState(false);
+  const [sceneId, setSceneId] = useState(() => {
+    try {
+      return window.localStorage?.getItem(MIRROR_SCENE_STORAGE_KEY) || "hall";
+    } catch {
+      return "hall";
+    }
+  });
+  const [mirrorMessage, setMirrorMessage] = useState("");
+  const [interactionPulse, setInteractionPulse] = useState(false);
+  const messageTimerRef = useRef(null);
+  const pointerActivationRef = useRef(false);
   const tier = tierRef.current;
+  const scenes = useMemo(() => buildMirrorScenes(achievements), [achievements]);
+  const selectedScene = scenes.find((scene) => scene.id === sceneId && (scene.unlocked || !achievementsLoaded)) ?? scenes[0];
+
+  useEffect(() => () => window.clearTimeout(messageTimerRef.current), []);
+
+  useEffect(() => {
+    if (!emotes) return;
+    let cancelled = false;
+    getAchievements()
+      .then((result) => {
+        if (!cancelled) {
+          setAchievements(Array.isArray(result) ? result : []);
+          setAchievementsLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAchievements([]);
+          setAchievementsLoaded(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [emotes]);
+
+  useEffect(() => {
+    if (!achievementsLoaded) return;
+    if (sceneId === selectedScene.id) return;
+    setSceneId(selectedScene.id);
+  }, [achievementsLoaded, sceneId, selectedScene.id]);
+
+  function showMirrorMessage(message) {
+    window.clearTimeout(messageTimerRef.current);
+    setMirrorMessage(message);
+    setInteractionPulse(false);
+    window.requestAnimationFrame(() => setInteractionPulse(true));
+    messageTimerRef.current = window.setTimeout(() => {
+      setMirrorMessage("");
+      setInteractionPulse(false);
+    }, 4200);
+  }
+
+  function triggerMirrorAction(action) {
+    const anim = viewerRef.current?.animation;
+    if (anim instanceof HeroIdleEmoteAnimation) anim.forceEmote(action.emote);
+    showMirrorMessage(action.message);
+  }
+
+  function selectMirrorScene(scene) {
+    if (!scene.unlocked || scene.id === selectedScene.id) return;
+    setSceneId(scene.id);
+    try {
+      window.localStorage?.setItem(MIRROR_SCENE_STORAGE_KEY, scene.id);
+    } catch {
+      // Ortswahl bleibt für die Sitzung aktiv, auch wenn Storage blockiert ist.
+    }
+    const anim = viewerRef.current?.animation;
+    if (anim instanceof HeroIdleEmoteAnimation) anim.forceEmote(2);
+    showMirrorMessage(`${scene.label} antwortet auf deine Anwesenheit.`);
+  }
+
+  function activateOnPointerDown(event, callback) {
+    event.stopPropagation();
+    pointerActivationRef.current = true;
+    callback();
+    window.setTimeout(() => {
+      pointerActivationRef.current = false;
+    }, 0);
+  }
+
+  function activateOnClick(callback) {
+    if (pointerActivationRef.current) {
+      pointerActivationRef.current = false;
+      return;
+    }
+    callback();
+  }
 
   // --- Stufe "reduced": statisches Paperdoll-Bild statt 3D-Szene ---
   useEffect(() => {
@@ -445,6 +605,7 @@ export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes 
     const anim = viewerRef.current?.animation;
     if (anim instanceof HeroIdleEmoteAnimation) {
       anim.forceEmote(Math.floor(Math.random() * EMOTES.length));
+      showMirrorMessage("Der Spiegel antwortet mit einer unerwarteten Geste.");
     }
   }
 
@@ -481,12 +642,81 @@ export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes 
   const friendSize = Math.round(width * 0.55);
 
   return (
-    <div className={`erzmark-skin-mirror-wrap${tier === "full" ? " erzmark-skin-mirror-wrap--shadow" : ""}`}>
+    <div
+      className={`erzmark-skin-mirror-wrap${tier === "full" ? " erzmark-skin-mirror-wrap--shadow" : ""}${emotes ? ` erzmark-skin-mirror-v2 is-scene-${selectedScene.id}${interactionPulse ? " is-responding" : ""}` : ""}`}
+      data-scene={emotes ? selectedScene.id : undefined}
+      aria-label={emotes ? `Skin Mirror Version 2, aktueller Ort: ${selectedScene.label}` : undefined}
+    >
+      {emotes && (
+        <div className="erzmark-mirror-v2-sanctuary" aria-hidden="true">
+          <span className="erzmark-mirror-v2-vault" />
+          <span className="erzmark-mirror-v2-horizon" />
+          <span className="erzmark-mirror-v2-floor" />
+          <span className="erzmark-mirror-v2-sigil">{selectedScene.rune}</span>
+          <span className="erzmark-mirror-v2-motes"><i /><i /><i /><i /><i /></span>
+        </div>
+      )}
+      {emotes && (
+        <div className="erzmark-mirror-v2-mark" aria-hidden="true">
+          <span>Skin Mirror</span><strong>V2</strong>
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         className={`erzmark-skin-mirror${glitching ? " erzmark-skin-mirror--glitch" : ""}`}
         onDoubleClick={tier === "full" ? handleDoubleClick : undefined}
+        role="img"
+        aria-label={emotes ? `Interaktive 3D-Ansicht deines Skins in der ${selectedScene.label}` : "3D-Ansicht des Minecraft-Skins"}
       />
+      {emotes && (
+        <>
+          <nav className="erzmark-mirror-v2-scenes" aria-label="Aufenthaltsort des Skin Mirrors wählen" onPointerMove={(event) => event.stopPropagation()}>
+            {scenes.map((scene) => (
+              <button
+                key={scene.id}
+                type="button"
+                className={scene.id === selectedScene.id ? "is-active" : ""}
+                onPointerDown={(event) => {
+                  activateOnPointerDown(event, () => selectMirrorScene(scene));
+                }}
+                onClick={() => activateOnClick(() => selectMirrorScene(scene))}
+                disabled={!scene.unlocked}
+                aria-pressed={scene.id === selectedScene.id}
+                aria-label={scene.unlocked ? `${scene.label} wählen` : `${scene.label} gesperrt. ${scene.lockedStory}`}
+                title={scene.unlocked ? scene.label : scene.lockedStory}
+              >
+                <span>{scene.rune}</span>
+                <small>{scene.label}</small>
+                {!scene.unlocked && <i aria-hidden="true">◇</i>}
+              </button>
+            ))}
+          </nav>
+
+          <div className="erzmark-mirror-v2-actions" role="toolbar" aria-label="Mit dem Skin Mirror interagieren" onPointerMove={(event) => event.stopPropagation()}>
+            {MIRROR_ACTIONS.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                onPointerDown={(event) => {
+                  activateOnPointerDown(event, () => triggerMirrorAction(action));
+                }}
+                onClick={() => activateOnClick(() => triggerMirrorAction(action))}
+                title={action.label}
+                aria-label={action.label}
+              >
+                <span aria-hidden="true">{action.rune}</span><small>{action.label}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="erzmark-mirror-v2-chronicle" aria-live="polite" onPointerMove={(event) => event.stopPropagation()}>
+            <span>{selectedScene.kicker}</span>
+            <strong>{selectedScene.label}</strong>
+            <p>{mirrorMessage || selectedScene.story}</p>
+            {selectedScene.proof && <small>Geweckt durch: {selectedScene.proof.title}</small>}
+          </div>
+        </>
+      )}
       {glitching && glitchLine && <div className="erzmark-skin-mirror-glitch-quote">R.U.D.O.L.F.: „{glitchLine}“</div>}
       {friendsSkins.length > 0 && (
         <div className="erzmark-skin-mirror-room" aria-hidden="true">

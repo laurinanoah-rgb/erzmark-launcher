@@ -1,11 +1,22 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getFriends, removeFriend } from "../api/friends.js";
 import { useNotifications } from "../state/NotificationsContext.jsx";
+import { useTalk } from "../state/TalkContext.jsx";
 import FriendProfilePopup from "./FriendProfilePopup.jsx";
+import SilentInviteRadar from "./SilentInviteRadar.jsx";
 
 // Online-Status kann sich jederzeit ändern -> regelmäßig neu laden, während
 // der Launcher offen bleibt.
 const AUTO_REFRESH_MS = 30 * 1000;
+
+// Gruppen-Reihenfolge für die Freundesliste (22.08.2026, Nutzerwunsch,
+// Design-Prototyp übernommen). "talk" existiert hier bewusst schon als
+// Gruppe, obwohl aktuell nie jemand hineinfällt, siehe getFriendStatus().
+const FRIEND_STATUS_GROUPS = [
+  { key: "talk", label: "Im Talk" },
+  { key: "online", label: "Online" },
+  { key: "offline", label: "Offline" },
+];
 
 function formatLastSeen(unixSeconds) {
   if (!unixSeconds) return "";
@@ -17,6 +28,34 @@ function formatLastSeen(unixSeconds) {
   if (hours < 24) return `vor ${hours} Std`;
   const days = Math.floor(hours / 24);
   return `vor ${days} Tag${days === 1 ? "" : "en"}`;
+}
+
+// Real seit 23.08.2026 (vorher immer "online"/"offline", da die
+// Freunde-API selbst keine Session-Info liefert) - `friendsInVoiceUuids`
+// kommt aus der echten Voice-Presence (siehe TalkContext.jsx/voice.rs).
+function getFriendStatus(friend, friendsInVoiceUuids) {
+  if (friend.online && friendsInVoiceUuids.has(friend.uuid)) return "talk";
+  return friend.online ? "online" : "offline";
+}
+
+// TODO(Backend): Kein Aktivitäts-/Server-Feld in der Freunde-API vorhanden
+// (siehe FriendEntry in friends.rs - nur uuid/name/online/lastSeen/photoUrl).
+// Sobald das Backend z. B. `friend.activityText` ("Auf Lobby-1", "Im Nether"
+// o.ä.) liefert, hier anzeigen statt des generischen "Online"/"Offline".
+function getPresenceText(friend) {
+  if (friend.activityText) return friend.activityText;
+  if (friend.online) return "Online";
+  const lastSeen = formatLastSeen(friend.lastSeen);
+  return lastSeen ? `Zuletzt online ${lastSeen}` : "Offline";
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6" />
+      <path d="m15 15 4.2 4.2" />
+    </svg>
+  );
 }
 
 /**
@@ -32,6 +71,7 @@ export default function FriendsList({ onOnlineCountChange }) {
   const [confirmingUuid, setConfirmingUuid] = useState(null);
   const [removingUuid, setRemovingUuid] = useState(null);
   const [openProfileUuid, setOpenProfileUuid] = useState(null);
+  const [query, setQuery] = useState("");
   const timerRef = useRef(null);
   // Server-seitig wirkt "Entfernen" asynchron (live falls online, sonst
   // sobald offline, siehe removeFriend()) - bis MMOCore das tatsächlich
@@ -40,6 +80,7 @@ export default function FriendsList({ onOnlineCountChange }) {
   // davon, was getFriends() zwischenzeitlich noch liefert.
   const pendingRemovalsRef = useRef(new Set());
   const { friendRequests, respondFriendRequest } = useNotifications();
+  const { talk, voicePresences } = useTalk();
 
   useEffect(() => {
     refresh();
@@ -81,16 +122,45 @@ export default function FriendsList({ onOnlineCountChange }) {
   const onlineCount = friends.filter((f) => f.online).length;
   const openProfile = friends.find((f) => f.uuid === openProfileUuid) ?? null;
 
+  // Freund-UUIDs, die laut echter Voice-Presence gerade im Voice sind
+  // (self-Eintrag ausgeschlossen - ist eh nie Teil der Freundesliste).
+  const friendsInVoiceUuids = useMemo(
+    () => new Set(voicePresences.map((p) => p.uuid)),
+    [voicePresences]
+  );
+
+  const filteredFriends = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return friends;
+    return friends.filter((f) => f.name.toLowerCase().includes(term));
+  }, [friends, query]);
+
+  const groupedFriends = useMemo(() => {
+    const groups = { talk: [], online: [], offline: [] };
+    for (const friend of filteredFriends) {
+      groups[getFriendStatus(friend, friendsInVoiceUuids)].push(friend);
+    }
+    return groups;
+  }, [filteredFriends, friendsInVoiceUuids]);
+
+  const friendsInVoiceCount = friends.filter((f) => friendsInVoiceUuids.has(f.uuid)).length;
+  // Radar ist nur sinnvoll, solange man nicht selbst schon im Voice ist
+  // (dann zeigt ohnehin das Anker-Widget alles Nötige an).
+  const showInviteRadar = !loading && !talk && friendsInVoiceCount >= 1;
+
   return (
     <div className="erzmark-friends">
-      <div className="erzmark-gallery-title">
-        <span>
-          Freunde
-          {friends.length > 0 && (
-            <span className="erzmark-friends-count"> ({onlineCount}/{friends.length})</span>
-          )}
-        </span>
-        <button className="erzmark-link-btn" onClick={refresh} disabled={loading} title="Aktualisieren">
+      <div className="erzmark-companion-header">
+        <div className="erzmark-companion-orbit" aria-hidden="true">
+          <i /><i /><i />
+          <span>{onlineCount}</span>
+        </div>
+        <div className="erzmark-companion-heading">
+          <span className="erzmark-companion-kicker">Dein Gefährtenband</span>
+          <strong>Weggefährten</strong>
+          <small>{loading ? "Spuren werden gelesen…" : `${onlineCount} am Feuer · ${friends.length} verbunden`}</small>
+        </div>
+        <button className="erzmark-companion-refresh" onClick={refresh} disabled={loading} title="Gefährten aktualisieren" aria-label="Gefährten aktualisieren">
           ↻
         </button>
       </div>
@@ -126,67 +196,98 @@ export default function FriendsList({ onOnlineCountChange }) {
         <p className="erzmark-gallery-empty">Noch keine Freunde – füge welche im Spiel hinzu.</p>
       )}
 
-      <div className="erzmark-friends-list">
-        {friends.map((friend) => (
-          <div key={friend.uuid} className="erzmark-friend-row">
-            <img
-              className="erzmark-friend-avatar"
-              src={friend.photoUrl ?? `https://crafatar.com/avatars/${friend.uuid}?size=32&overlay`}
-              alt=""
-              loading="lazy"
-            />
-            <span
-              className={
-                friend.online
-                  ? "erzmark-friend-dot erzmark-friend-dot-online"
-                  : "erzmark-friend-dot erzmark-friend-dot-offline"
-              }
-            />
-            <button
-              type="button"
-              className="erzmark-friend-name erzmark-friend-name-btn"
-              onClick={() => setOpenProfileUuid(friend.uuid)}
-              title={`${friend.name} - Profil anzeigen`}
-            >
-              {friend.name}
-            </button>
-            {!friend.online && (
-              <span className="erzmark-friend-lastseen">{formatLastSeen(friend.lastSeen)}</span>
-            )}
-            {confirmingUuid === friend.uuid ? (
-              <span className="erzmark-friend-remove-confirm">
-                <button
-                  type="button"
-                  className="erzmark-friend-remove-confirm-btn"
-                  onClick={() => handleRemove(friend.uuid)}
-                  disabled={removingUuid === friend.uuid}
-                  title="Wirklich entfernen?"
-                >
-                  {removingUuid === friend.uuid ? "…" : "Wirklich?"}
-                </button>
-                <button
-                  type="button"
-                  className="erzmark-link-btn"
-                  onClick={() => setConfirmingUuid(null)}
-                  disabled={removingUuid === friend.uuid}
-                >
-                  Abbrechen
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="erzmark-friend-remove-btn"
-                onClick={() => setConfirmingUuid(friend.uuid)}
-                title={`${friend.name} entfernen`}
-                aria-label={`${friend.name} entfernen`}
-              >
-                ✕
-              </button>
-            )}
+      {!loading && !error && showInviteRadar && (
+        <SilentInviteRadar friendsInVoiceCount={friendsInVoiceCount} />
+      )}
+
+      {!loading && !error && friends.length > 0 && (
+        <label className="erzmark-friend-search-shell">
+          <SearchIcon />
+          <input
+            type="text"
+            className="erzmark-friend-search"
+            placeholder="Weggefährten suchen…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && <button type="button" onClick={() => setQuery("")} aria-label="Suche leeren">×</button>}
+        </label>
+      )}
+
+      {!loading && !error && friends.length > 0 && filteredFriends.length === 0 && (
+        <p className="erzmark-gallery-empty">Keine Freunde gefunden für „{query}“.</p>
+      )}
+
+      {FRIEND_STATUS_GROUPS.map(({ key, label }) => {
+        const groupFriends = groupedFriends[key];
+        if (groupFriends.length === 0) return null;
+        return (
+          <div key={key} className="erzmark-friend-group">
+            <div className="erzmark-friend-group-header">
+              <span>{label}</span>
+              <span className="erzmark-friend-group-count">{groupFriends.length}</span>
+            </div>
+            <div className="erzmark-friends-list">
+              {groupFriends.map((friend) => (
+                <div key={friend.uuid} className={`erzmark-friend-row is-${getFriendStatus(friend, friendsInVoiceUuids)}`}>
+                  <button
+                    type="button"
+                    className="erzmark-friend-identity"
+                    onClick={() => setOpenProfileUuid(friend.uuid)}
+                    title={`${friend.name} – Begegnung öffnen`}
+                  >
+                    <span className="erzmark-friend-avatar-frame">
+                      <img
+                        className="erzmark-friend-avatar"
+                        src={friend.photoUrl ?? `https://crafatar.com/avatars/${friend.uuid}?size=48&overlay`}
+                        alt=""
+                        loading="lazy"
+                      />
+                      <span className={friend.online ? "erzmark-friend-dot erzmark-friend-dot-online" : "erzmark-friend-dot erzmark-friend-dot-offline"} />
+                    </span>
+                  <div className="erzmark-friend-main">
+                    <span className="erzmark-friend-name erzmark-friend-name-btn">{friend.name}</span>
+                    <span className="erzmark-friend-presence">{getPresenceText(friend)}</span>
+                  </div>
+                  <span className="erzmark-friend-open-mark" aria-hidden="true">›</span>
+                  </button>
+                  {confirmingUuid === friend.uuid ? (
+                    <span className="erzmark-friend-remove-confirm">
+                      <button
+                        type="button"
+                        className="erzmark-friend-remove-confirm-btn"
+                        onClick={() => handleRemove(friend.uuid)}
+                        disabled={removingUuid === friend.uuid}
+                        title="Wirklich entfernen?"
+                      >
+                        {removingUuid === friend.uuid ? "…" : "Wirklich?"}
+                      </button>
+                      <button
+                        type="button"
+                        className="erzmark-link-btn"
+                        onClick={() => setConfirmingUuid(null)}
+                        disabled={removingUuid === friend.uuid}
+                      >
+                        Abbrechen
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="erzmark-friend-remove-btn"
+                      onClick={() => setConfirmingUuid(friend.uuid)}
+                      title={`${friend.name} entfernen`}
+                      aria-label={`${friend.name} entfernen`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
 
       {openProfile && (
         <FriendProfilePopup

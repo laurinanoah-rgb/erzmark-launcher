@@ -1,12 +1,16 @@
 name: Erzmark Launcher – Release bauen
 
-# Manuell auslösbar über den "Actions"-Tab auf GitHub (Run workflow-Button).
+# Wird durch einen Release-Tag automatisch ausgelöst und kann zusätzlich
+# manuell über den Actions-Tab gestartet werden.
 # Baut Windows-, macOS- (Intel + Apple Silicon) und Linux-Installer parallel
 # in der Cloud – kein eigener Mac/Linux-Rechner nötig. Legt am Ende einen
 # GitHub-Release als Entwurf (Draft) an, den du nach Prüfung manuell
 # veröffentlichst.
 on:
   workflow_dispatch: {}
+  push:
+    tags:
+      - 'erzmark-launcher-v*'
 
 jobs:
   publish-tauri:
@@ -45,8 +49,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libdbus-1-dev pkg-config
 
-      - name: Frontend-Abhängigkeiten installieren
-        run: npm install
+      - name: Frontend-Abhängigkeiten reproduzierbar installieren
+        run: npm ci
 
       - name: Erzmark Launcher bauen + als Release-Entwurf hochladen
         uses: tauri-apps/tauri-action@v1
@@ -57,7 +61,28 @@ jobs:
         with:
           tagName: erzmark-launcher-v__VERSION__
           releaseName: 'Erzmark Launcher v__VERSION__'
-          releaseBody: 'Neue Version des Erzmark Launchers.'
-          releaseDraft: true
+          releaseBody: |
+            ## Erzmark Launcher 1.5
+
+            Das bisher größte Oberflächen-Update des Erzmark Launchers:
+
+            - vollständig skalierbare 16:9- und 21:9-Haupthalle
+            - frei verschiebbare Gemeinschafts-, Welt- und Menü-Docks
+            - modernes Profil mit Titelbild und erzählender Erfolgs-Vitrine
+            - Skin Mirror V2 mit lebendigen, erfolgsgebundenen Aufenthaltsorten
+            - neues Gefährtenband und eigenständige Begegnungsprofile
+            - Erzmark-Herold mit Aufmacher, Depeschen und Chroniklinie
+            - adaptives mittelalterliches Portalritual beim Start
+            - UI-/Textskalierung, hoher Kontrast und reduzierte Bewegung
+            - neue Mikroanimationen, Lichtläufe und Leistungsstufen
+
+            Die Installer und der integrierte Updater sind für diese Version
+            mit einem rotierten Erzmark-Signierschlüssel abgesichert.
+
+            **Wichtiger Sicherheitshinweis:** Für 1.5 wurde der bisherige
+            Updater-Schlüssel ersetzt. Der Wechsel von 1.4.4 auf 1.5.0 muss
+            deshalb einmalig über den Installer erfolgen. Ab Version 1.5
+            funktionieren automatische Updates wieder wie gewohnt.
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

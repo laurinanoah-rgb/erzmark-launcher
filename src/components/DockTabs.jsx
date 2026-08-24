@@ -13,7 +13,14 @@ import { signalTabHover } from "../state/skinMirrorMood.js";
  * "reduced" nur ein direkter Zustandswechsel ohne Bewegung, siehe
  * src/utils/performanceTier.js.
  */
-export default function DockTabs({ tabs }) {
+export default function DockTabs({
+  tabs,
+  editing = false,
+  onMoveModule,
+  onPointerDragStart,
+  onPointerDragMove,
+  onPointerDragEnd,
+}) {
   const [active, setActive] = useState(tabs[0].id);
   const [displayed, setDisplayed] = useState(tabs[0].id);
   const railRef = useRef(null);
@@ -22,6 +29,12 @@ export default function DockTabs({ tabs }) {
   const tierRef = useRef(getPerformanceTier());
   const indicatorMounted = useRef(false);
   const panelMounted = useRef(false);
+
+  useEffect(() => {
+    if (tabs.some((tab) => tab.id === active)) return;
+    setActive(tabs[0]?.id);
+    setDisplayed(tabs[0]?.id);
+  }, [active, tabs]);
 
   // Indikator zur aktiven Tab-Position gleiten lassen.
   useEffect(() => {
@@ -68,9 +81,13 @@ export default function DockTabs({ tabs }) {
   }, [displayed]);
 
   const shownTab = tabs.find((t) => t.id === displayed) ?? tabs[0];
+  if (!shownTab) return null;
 
   return (
-    <div className={`erzmark-dock erzmark-dock-tint-${shownTab.color ?? "gold"}`}>
+    <div
+      className={`erzmark-dock erzmark-dock-tint-${shownTab.color ?? "gold"}${tabs.length === 1 ? " erzmark-dock-single" : ""}${editing ? " is-editing" : ""}`}
+      data-active-id={shownTab.id}
+    >
       <nav className="erzmark-dock-rail" ref={railRef} aria-label="Widget-Auswahl">
         <div ref={indicatorRef} className="erzmark-dock-indicator" aria-hidden="true" />
         {tabs.map(({ id, label, Icon, badge }) => (
@@ -84,13 +101,27 @@ export default function DockTabs({ tabs }) {
             title={label}
             aria-label={label}
             aria-pressed={active === id}
+            draggable={false}
+            onPointerDown={(event) => editing && onPointerDragStart?.(id, event)}
+            onPointerMove={(event) => editing && onPointerDragMove?.(event)}
+            onPointerUp={(event) => editing && onPointerDragEnd?.(event)}
+            onPointerCancel={(event) => editing && onPointerDragEnd?.(event, true)}
           >
+            {editing && <span className="erzmark-dock-drag-grip" aria-hidden="true">⠿</span>}
             <Icon />
             <span className="erzmark-dock-tab-label">{label}</span>
             {badge ? <span className="erzmark-dock-tab-badge">{badge}</span> : null}
           </button>
         ))}
       </nav>
+
+      {editing && (
+        <div className="erzmark-dock-edit-actions">
+          <span>{shownTab.label}</span>
+          <button type="button" onClick={() => onMoveModule?.(shownTab.id, "floating")}>Lösen</button>
+          <button type="button" onClick={() => onMoveModule?.(shownTab.id, "hidden")}>Ausblenden</button>
+        </div>
+      )}
 
       <div className="erzmark-dock-panel" ref={panelRef}>
         {shownTab.content}

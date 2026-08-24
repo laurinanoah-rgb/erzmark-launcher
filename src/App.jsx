@@ -1,14 +1,21 @@
-import { useEffect, useState } from "react";
-import LoginScreen from "./components/LoginScreen.jsx";
-import MainScreen from "./components/MainScreen.jsx";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import LoadingSpinner from "./components/LoadingSpinner.jsx";
-import UpdateVideoScreen from "./components/UpdateVideoScreen.jsx";
-import UpdateAvailableScreen from "./components/UpdateAvailableScreen.jsx";
 import BootAnimation from "./components/BootAnimation.jsx";
 import { tryRestoreSession } from "./api/auth.js";
 import { DEV_MANIFEST } from "./api/devManifest.js";
 import { checkForLauncherUpdate } from "./api/appUpdater.js";
 import { getPerformanceTier } from "./utils/performanceTier.js";
+import { getSettings } from "./api/settings.js";
+import { subscribeSettingsChanged } from "./state/settingsBus.js";
+import {
+  DEFAULT_DISPLAY_PREFERENCES,
+  resolveDisplayPreferences,
+} from "./utils/displayPreferences.js";
+
+const LoginScreen = lazy(() => import("./components/LoginScreen.jsx"));
+const MainScreen = lazy(() => import("./components/MainScreen.jsx"));
+const UpdateVideoScreen = lazy(() => import("./components/UpdateVideoScreen.jsx"));
+const UpdateAvailableScreen = lazy(() => import("./components/UpdateAvailableScreen.jsx"));
 
 // Merkt sich lokal, welche Client-Version das Update-Video schon gezeigt
 // bekommen hat, damit es nur einmal pro neuem Update abgespielt wird (nicht
@@ -30,6 +37,35 @@ export default function App() {
   const [restoreError, setRestoreError] = useState(null);
   const [bootDone, setBootDone] = useState(false);
   const [perfTier] = useState(getPerformanceTier);
+  const [displaySettings, setDisplaySettings] = useState(DEFAULT_DISPLAY_PREFERENCES);
+  const [viewportRevision, setViewportRevision] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings()
+      .then((settings) => {
+        if (!cancelled) setDisplaySettings(settings);
+      })
+      .catch(() => {});
+
+    const unsubscribe = subscribeSettingsChanged(setDisplaySettings);
+    let resizeTimer;
+    const handleResize = () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => setViewportRevision((value) => value + 1), 120);
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      window.clearTimeout(resizeTimer);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  const display = resolveDisplayPreferences(displaySettings, viewportRevision);
+  const handleBootComplete = useCallback(() => setBootDone(true), []);
 
   // Prüft/stellt die gespeicherte Login-Session wieder her und wählt den
   // passenden Folge-Screen. Wird sowohl direkt beim Start aufgerufen (wenn
@@ -102,25 +138,49 @@ export default function App() {
   }
 
   return (
-    <div className="erzmark-app">
-      {!bootDone && <BootAnimation tier={perfTier} onComplete={() => setBootDone(true)} />}
-      {status === "updateCheck" && <LoadingSpinner label="Suche nach Updates…" />}
-      {status === "updateAvailable" && pendingUpdate && (
-        <UpdateAvailableScreen
-          update={pendingUpdate}
-          onContinueWithoutUpdate={handleContinueWithoutUpdate}
+    <div
+      className="erzmark-app"
+      data-performance={perfTier}
+      data-display-profile={display.profile}
+      data-ui-scale={display.ui_scale}
+      data-text-scale={display.text_scale}
+      data-high-contrast={display.high_contrast ? "true" : "false"}
+      data-reduce-motion={display.reduce_motion ? "true" : "false"}
+      style={{
+        zoom: display.zoom,
+        width: "100%",
+        height: "100%",
+        WebkitTextSizeAdjust: display.textAdjust,
+        textSizeAdjust: display.textAdjust,
+      }}
+    >
+      {!bootDone && (
+        <BootAnimation
+          tier={perfTier}
+          profile={display.profile}
+          reduceMotion={display.reduce_motion}
+          onComplete={handleBootComplete}
         />
       )}
-      {status === "checking" && <LoadingSpinner label="Sitzung wird geprüft…" />}
-      {status === "login" && (
-        <LoginScreen initialError={restoreError} onLoggedIn={handleLoggedIn} />
-      )}
-      {status === "updateVideo" && (
-        <UpdateVideoScreen videoUrl={DEV_MANIFEST.updateVideoUrl} onDone={handleVideoDone} />
-      )}
-      {status === "loggedIn" && (
-        <MainScreen session={session} onLoggedOut={handleLoggedOut} />
-      )}
+      {status === "updateCheck" && <LoadingSpinner label="Suche nach Updates…" />}
+      <Suspense fallback={<LoadingSpinner label="Oberfläche wird vorbereitet…" />}>
+        {status === "updateAvailable" && pendingUpdate && (
+          <UpdateAvailableScreen
+            update={pendingUpdate}
+            onContinueWithoutUpdate={handleContinueWithoutUpdate}
+          />
+        )}
+        {status === "checking" && <LoadingSpinner label="Sitzung wird geprüft…" />}
+        {status === "login" && (
+          <LoginScreen initialError={restoreError} onLoggedIn={handleLoggedIn} />
+        )}
+        {status === "updateVideo" && (
+          <UpdateVideoScreen videoUrl={DEV_MANIFEST.updateVideoUrl} onDone={handleVideoDone} />
+        )}
+        {status === "loggedIn" && (
+          <MainScreen session={session} onLoggedOut={handleLoggedOut} />
+        )}
+      </Suspense>
     </div>
   );
 }

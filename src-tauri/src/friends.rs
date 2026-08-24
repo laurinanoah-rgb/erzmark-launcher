@@ -22,6 +22,15 @@ pub struct FriendEntry {
     /// siehe friends.php und ProfileController::resolveOwnProfile().
     #[serde(rename = "photoUrl")]
     pub photo_url: Option<String>,
+    /// Ob der Freund seinen Account per Discord verknüpft hat (23.08.2026,
+    /// Voraussetzung für den echten Talk-Button in FriendProfilePopup.jsx -
+    /// ohne Discord-Verknüpfung kann R.U.D.O.L.F. keinen privaten
+    /// Voice-Channel für ihn erstellen). `#[serde(default)]`, weil das Feld
+    /// im Wire-Format der Freunde-API noch nicht existiert (wird parallel
+    /// vom Backend ergänzt) - fehlt es im JSON, gilt einfach `false` statt
+    /// eines Deserialisierungs-Fehlers.
+    #[serde(rename = "discordLinked", default)]
+    pub discord_linked: bool,
 }
 
 #[derive(Debug, Deserialize)]

@@ -6,7 +6,14 @@ import { getProfile, saveProfile, BANNER_PRESETS } from "../api/profileEditor.js
 import { getAchievements } from "../api/achievements.js";
 import { getCharacterProfiles } from "../api/profiles.js";
 import { getStatsHistory } from "../api/statsHistory.js";
-import { getProfileMedia, uploadProfilePhoto, removeProfilePhoto } from "../api/profileMedia.js";
+import {
+  getProfileMedia,
+  uploadProfilePhoto,
+  removeProfilePhoto,
+  uploadProfileCover,
+  removeProfileCover,
+} from "../api/profileMedia.js";
+import { listScreenshots } from "../api/screenshots.js";
 
 function EditorIcon() {
   return (
@@ -36,6 +43,11 @@ function ProfileEditorTab() {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState(null);
+  const [coverUrl, setCoverUrl] = useState(null);
+  const [coverBusy, setCoverBusy] = useState(null); // Filename des gerade anzupinnenden Screenshots, sonst null
+  const [coverError, setCoverError] = useState(null);
+  const [pinnedFilename, setPinnedFilename] = useState(null); // rein lokale UI-Markierung, siehe Kommentar unten
+  const [screenshots, setScreenshots] = useState([]);
 
   useEffect(() => {
     getCurrentSkinUrl().then(setSkinUrl).catch(() => {});
@@ -44,8 +56,14 @@ function ProfileEditorTab() {
       .then((list) => setAchievements(list.filter((a) => a.unlocked)))
       .catch(() => setAchievements([]));
     getProfileMedia()
-      .then((media) => setPhotoUrl(media.photoUrl))
+      .then((media) => {
+        setPhotoUrl(media.photoUrl);
+        setCoverUrl(media.coverUrl);
+      })
       .catch(() => {});
+    listScreenshots(8)
+      .then(setScreenshots)
+      .catch(() => setScreenshots([]));
   }, []);
 
   async function handlePhotoChange(e) {
@@ -77,6 +95,47 @@ function ProfileEditorTab() {
     }
   }
 
+  /**
+   * Session-Vitrine als Profilbanner: pinnt einen der letzten Screenshots
+   * (siehe ScreenshotGallery.jsx/api/screenshots.js) als Titelbild über den
+   * schon vorhandenen, bisher ungenutzten Cover-Endpunkt
+   * (api/profileMedia.js uploadProfileCover/removeProfileCover, Backend
+   * bereits fertig - social.rs/social_commands.rs). Genutzt wird bewusst
+   * dasselbe kleine JPEG-Vorschaubild, das list_screenshots ohnehin schon
+   * erzeugt (kein neuer Tauri-Command für die Originalauflösung) - für ein
+   * Titelbild ausreichend, aber nicht in Druckqualität.
+   */
+  async function handlePinScreenshot(shot) {
+    setCoverError(null);
+    setCoverBusy(shot.filename);
+    try {
+      const res = await fetch(shot.thumbnail_data_url);
+      const blob = await res.blob();
+      const file = new File([blob], shot.filename.replace(/\.png$/i, ".jpg"), { type: "image/jpeg" });
+      const url = await uploadProfileCover(file);
+      setCoverUrl(url ?? null);
+      setPinnedFilename(shot.filename);
+    } catch (err) {
+      setCoverError(err?.message ?? String(err));
+    } finally {
+      setCoverBusy(null);
+    }
+  }
+
+  async function handleRemoveCover() {
+    setCoverError(null);
+    setCoverBusy("__remove__");
+    try {
+      await removeProfileCover();
+      setCoverUrl(null);
+      setPinnedFilename(null);
+    } catch (err) {
+      setCoverError(err?.message ?? String(err));
+    } finally {
+      setCoverBusy(null);
+    }
+  }
+
   function toggleFeatured(id) {
     setSaved(false);
     setProfile((prev) => {
@@ -97,15 +156,64 @@ function ProfileEditorTab() {
   if (!profile) return <p className="erzmark-hint">Lädt…</p>;
 
   const banner = BANNER_PRESETS.find((b) => b.id === profile.bannerId) ?? BANNER_PRESETS[0];
+  // Session-Vitrine: gepinnter Screenshot (auf dem Server gespeichert) hat
+  // Vorrang, sonst automatisch der neueste lokale Screenshot als Vorschau
+  // (rein clientseitig, wird NICHT automatisch hochgeladen - erst "Anpinnen"
+  // persistiert etwas). Ganz ohne Screenshots bleibt es beim Farbverlauf.
+  const latestScreenshot = screenshots[0] ?? null;
+  const autoBannerImage = !coverUrl && latestScreenshot ? latestScreenshot.thumbnail_data_url : null;
+  const bannerImage = coverUrl ?? autoBannerImage;
+  const bannerStyle = bannerImage
+    ? { backgroundImage: `url(${bannerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { background: banner.gradient };
 
   return (
-    <div className="erzmark-profile-editor">
-      <div className="erzmark-profile-editor-banner" style={{ background: banner.gradient }}>
+    <div className="erzmark-profile-editor" style={{ "--erzmark-profile-accent": banner.accent }}>
+      <div className="erzmark-profile-editor-banner" style={bannerStyle}>
+        {bannerImage && <div className="erzmark-profile-editor-banner-shade" />}
+        {autoBannerImage && <span className="erzmark-profile-editor-banner-tag">Automatisch · neuester Screenshot</span>}
         {skinUrl && (
           <div className="erzmark-profile-editor-avatar">
             <SkinMirror skinUrl={skinUrl} width={72} height={94} />
           </div>
         )}
+      </div>
+
+      <div className="erzmark-feedback-field">
+        <span>Profilbanner aus Screenshots</span>
+        <p className="erzmark-hint">
+          Einen deiner letzten Screenshots (F2 im Spiel) als Titelbild anpinnen. Ohne Auswahl wird automatisch
+          der neueste Screenshot angezeigt, ohne dass etwas gespeichert wird.
+        </p>
+        {screenshots.length === 0 && (
+          <p className="erzmark-gallery-empty">Noch keine Screenshots – drück F2 im Spiel, um einen zu machen.</p>
+        )}
+        {screenshots.length > 0 && (
+          <div className="erzmark-gallery-grid">
+            {screenshots.map((s) => (
+              <button
+                type="button"
+                key={s.filename}
+                className={`erzmark-gallery-thumb erzmark-profile-cover-thumb${
+                  pinnedFilename === s.filename ? " is-pinned" : ""
+                }`}
+                onClick={() => handlePinScreenshot(s)}
+                disabled={coverBusy != null}
+                title={new Date(s.taken_at * 1000).toLocaleString("de-DE")}
+              >
+                <img src={s.thumbnail_data_url} alt="" />
+                {coverBusy === s.filename && <span className="erzmark-profile-cover-thumb-busy">…</span>}
+                {pinnedFilename === s.filename && <span className="erzmark-profile-cover-thumb-pin">📌</span>}
+              </button>
+            ))}
+          </div>
+        )}
+        {coverUrl && (
+          <button type="button" className="erzmark-link-btn" onClick={handleRemoveCover} disabled={coverBusy != null}>
+            {coverBusy === "__remove__" ? "…" : "Banner entfernen"}
+          </button>
+        )}
+        {coverError && <p className="erzmark-error">{coverError}</p>}
       </div>
 
       <div className="erzmark-feedback-field">
@@ -134,7 +242,10 @@ function ProfileEditorTab() {
       </div>
 
       <div className="erzmark-feedback-field">
-        <span>Banner</span>
+        <span>Akzentfarbe</span>
+        <p className="erzmark-hint">
+          Färbt den Avatar-Rahmen oben und dient als Fallback-Hintergrund, solange kein Banner-Screenshot gepinnt ist.
+        </p>
         <div className="erzmark-profile-banner-row">
           {BANNER_PRESETS.map((b) => (
             <button
