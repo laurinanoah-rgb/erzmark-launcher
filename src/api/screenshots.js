@@ -14,3 +14,7 @@ export async function openScreenshotsFolder() {
 export async function openScreenshot(filename) {
   return invoke("open_screenshot", { filename });
 }
+
+export async function getScreenshotDataUrl(filename) {
+  return invoke("get_screenshot_data_url", { filename });
+}

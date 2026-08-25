@@ -62,27 +62,45 @@ jobs:
           tagName: erzmark-launcher-v__VERSION__
           releaseName: 'Erzmark Launcher v__VERSION__'
           releaseBody: |
-            ## Erzmark Launcher 1.5
+            ## Erzmark Launcher 1.5.1
 
-            Das bisher größte Oberflächen-Update des Erzmark Launchers:
+            Wartungs-Release: Der Spielstart war mit Minecraft 26.2 defekt und
+            ist wieder repariert. Dazu ein mitgeliefertes Startpack und mehrere
+            Verbesserungen an Skin-Schmiede, Erinnerungen und Gilde.
 
-            - vollständig skalierbare 16:9- und 21:9-Haupthalle
-            - frei verschiebbare Gemeinschafts-, Welt- und Menü-Docks
-            - modernes Profil mit Titelbild und erzählender Erfolgs-Vitrine
-            - Skin Mirror V2 mit lebendigen, erfolgsgebundenen Aufenthaltsorten
-            - neues Gefährtenband und eigenständige Begegnungsprofile
-            - Erzmark-Herold mit Aufmacher, Depeschen und Chroniklinie
-            - adaptives mittelalterliches Portalritual beim Start
-            - UI-/Textskalierung, hoher Kontrast und reduzierte Bewegung
-            - neue Mikroanimationen, Lichtläufe und Leistungsstufen
+            ### Behoben
 
-            Die Installer und der integrierte Updater sind für diese Version
-            mit einem rotierten Erzmark-Signierschlüssel abgesichert.
+            - **Minecraft startete mit 26.2 nicht mehr.** Beim Zusammenbauen des
+              Klassenpfads fielen Bibliotheken mit gleicher Version, aber
+              unterschiedlichem Klassifikator auf denselben Schlüssel. Seit
+              Minecraft 26.2 liegen die LWJGL-Kernklassen im Artefakt
+              `org.lwjgl:lwjgl:3.4.1:unsafe`, das dadurch gegen die zugehörigen
+              Natives verdrängt wurde – das Spiel stürzte direkt beim Start mit
+              `NoClassDefFoundError: org/lwjgl/system/CallbackI` ab. Der
+              Klassifikator gehört jetzt zum Modul-Schlüssel und nicht mehr zur
+              Version.
+            - **Alte Mods blieben nach einem Versionswechsel liegen.** Der
+              verwaltete Mod-Ordner wird vor jedem Datei-Abgleich geleert.
+              Bisher blockierten zurückgebliebene Mods der Vorgängerversion den
+              Start mit „Incompatible mods found".
 
-            **Wichtiger Sicherheitshinweis:** Für 1.5 wurde der bisherige
-            Updater-Schlüssel ersetzt. Der Wechsel von 1.4.4 auf 1.5.0 muss
-            deshalb einmalig über den Installer erfolgen. Ab Version 1.5
-            funktionieren automatische Updates wieder wie gewohnt.
+            ### Neu
+
+            - **Startpack.** Fabric API, Sodium und Iris werden passend zur
+              Spielversion mitgeliefert und automatisch aktuell gehalten –
+              Shader funktionieren damit ohne manuelle Installation.
+            - **Skin-Schmiede.** Eigener lokaler Skin-Tresor: Skins importieren,
+              benennen, durchsuchen und jederzeit wieder anlegen. Skin-Dateien
+              werden vor dem Übernehmen auf Format und Variante geprüft.
+              Skin-per-URL und Zurücksetzen liegen jetzt unter „Weitere
+              Minecraft-Aktionen".
+            - **Erinnerungen.** Screenshots lassen sich als Favoriten merken und
+              im Vollbild-Karussell inklusive Diaschau durchblättern. Die
+              Originaldateien werden erst beim Öffnen geladen, wodurch die
+              Galerie deutlich schneller aufgeht.
+            - **Gildenrat und Reichskarte** als neue Ansichten im
+              Gemeinschafts-Dock, dazu ein Abschiedsbild beim Sprung ins Spiel.
+
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

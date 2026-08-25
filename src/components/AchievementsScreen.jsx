@@ -113,6 +113,7 @@ function useForgeLayout(achievements) {
         nodes.push({ ...a, x: pos.x, y: pos.y, color: meta.color });
         edges.push({
           id: `${a.id}-edge`,
+          category: key,
           x1: prev.x,
           y1: prev.y,
           x2: pos.x,
@@ -126,7 +127,7 @@ function useForgeLayout(achievements) {
 
       const avg = n ? Math.round(list.reduce((sum, a) => sum + (a.unlocked ? 100 : a.progressPercent ?? 0), 0) / n) : 0;
       hubs.push({ key, ...meta, x: hubPos.x, y: hubPos.y });
-      trunkEdges.push({ id: `trunk-${key}`, x1: 0, y1: 0, x2: hubPos.x, y2: hubPos.y, bend: 0, color: meta.color, percent: avg });
+      trunkEdges.push({ id: `trunk-${key}`, category: key, x1: 0, y1: 0, x2: hubPos.x, y2: hubPos.y, bend: 0, color: meta.color, percent: avg });
     }
 
     const total = achievements?.length ?? 0;
@@ -228,12 +229,12 @@ function edgePathD(edge) {
 
 /** Ast-Verbindung: glüht stufenweise (1/4 bis ganz) je nach Fortschritt zum
  * nächsten Erfolg, statt einer immer gleich hellen Linie. */
-function ForgeEdgePath({ edge }) {
+function ForgeEdgePath({ edge, activeCategory }) {
   const { d, len } = edgePathD(edge);
   const quantized = Math.max(0, Math.min(100, Math.floor((edge.percent ?? 0) / 25) * 25));
   const fillLen = (len * quantized) / 100;
   return (
-    <g>
+    <g className={activeCategory !== "all" && activeCategory !== edge.category ? "is-muted" : ""} data-category={edge.category}>
       <path d={d} className="erzmark-forge-edge-base" />
       {quantized > 0 && (
         <path d={d} className="erzmark-forge-edge-fill-path" style={{ stroke: edge.color, strokeDasharray: `${fillLen} ${len}` }} />
@@ -263,6 +264,7 @@ function ForgeCanvasNode({ achievement, selectedId, onSelect }) {
       onFocus={() => onSelect(achievement.id)}
       title={isSecret ? "???" : achievement.title}
       data-node-id={achievement.id}
+      data-category={achievement.category}
     >
       <span className="erzmark-forge-node-icon">{achievement.unlocked ? achievement.icon : isSecret ? "🔒" : achievement.icon}</span>
       {achievement.justUnlocked && <span className="erzmark-forge-node-ping" aria-hidden="true" />}
@@ -270,12 +272,12 @@ function ForgeCanvasNode({ achievement, selectedId, onSelect }) {
   );
 }
 
-function ForgeCategoryHub({ hub }) {
+function ForgeCategoryHub({ hub, activeCategory, onActivate }) {
   return (
-    <div className="erzmark-forge-hub" style={{ left: `${hub.x}px`, top: `${hub.y}px`, "--cat": hub.color }}>
+    <button type="button" className={`erzmark-forge-hub${activeCategory === hub.key ? " is-resonating" : ""}${activeCategory !== "all" && activeCategory !== hub.key ? " is-muted" : ""}`} data-category={hub.key} style={{ left: `${hub.x}px`, top: `${hub.y}px`, "--cat": hub.color }} onClick={(event) => { event.stopPropagation(); onActivate(hub.key); }}>
       <span className="erzmark-forge-hub-icon">{hub.icon}</span>
       <span className="erzmark-forge-hub-label">{hub.label}</span>
-    </div>
+    </button>
   );
 }
 
@@ -366,7 +368,7 @@ function ForgeMinimap({ nodes, hubs, view, viewportW, viewportH, onJump }) {
  * gedrückter linker Maustaste verschieben, Mausrad zum Zoomen (Nutzer-
  * Feedback: "wie im Referenzbild", zu groß für eine feste Seite). Startet
  * eingepasst auf den ganzen Baum, damit man erst den Überblick hat. */
-function ForgeCanvas({ achievements, selectedId, onSelect }) {
+function ForgeCanvas({ achievements, selectedId, onSelect, activeCategory, onCategoryChange }) {
   const viewportRef = useRef(null);
   const dragRef = useRef(null);
   const didFit = useRef(false);
@@ -514,19 +516,19 @@ function ForgeCanvas({ achievements, selectedId, onSelect }) {
   }, [nodes, selectedId, onSelect]);
 
   return (
-    <div ref={viewportRef} className={`erzmark-forge-canvas-viewport${dragging ? " is-dragging" : ""}`} onMouseDown={onPointerDown}>
+    <div ref={viewportRef} className={`erzmark-forge-canvas-viewport${dragging ? " is-dragging" : ""}`} data-active-category={activeCategory} onMouseDown={onPointerDown}>
       <div
         className="erzmark-forge-canvas-world"
         style={{ transform: `translate(${center.cx + view.x}px, ${center.cy + view.y}px) scale(${view.scale})` }}
       >
         <svg className="erzmark-forge-canvas-svg">
           {edges.map((e) => (
-            <ForgeEdgePath key={e.id} edge={e} />
+            <ForgeEdgePath key={e.id} edge={e} activeCategory={activeCategory} />
           ))}
         </svg>
         <ForgeCenterHub percent={overallPercent} />
         {hubs.map((h) => (
-          <ForgeCategoryHub key={h.key} hub={h} />
+          <ForgeCategoryHub key={h.key} hub={h} activeCategory={activeCategory} onActivate={onCategoryChange} />
         ))}
         {nodes.map((n) => (
           <ForgeCanvasNode key={n.id} achievement={n} selectedId={selectedId} onSelect={onSelect} />
@@ -586,8 +588,20 @@ class ForgeErrorBoundary extends Component {
 }
 
 function ForgePage({ stats, achievements, selectedId, onSelect, onView, playerName, forgingId }) {
+  const [activeCategory, setActiveCategory] = useState("all");
   if (!achievements) return <p className="erzmark-hint">Lädt…</p>;
   const selected = achievements.find((a) => a.id === selectedId) ?? null;
+  const categoryStats = CATEGORY_ORDER.map((key) => {
+    const entries = achievements.filter((achievement) => achievement.category === key);
+    return { key, unlocked: entries.filter((achievement) => achievement.unlocked).length, total: entries.length };
+  });
+  function activatePath(key) {
+    setActiveCategory(key);
+    if (key === "all") return;
+    const entries = achievements.filter((achievement) => achievement.category === key).sort((a, b) => a.step - b.step);
+    const destination = entries.find((achievement) => !achievement.unlocked) ?? entries.at(-1);
+    if (destination) onSelect(destination.id);
+  }
 
   return (
     <div className="erzmark-forge-page">
@@ -598,13 +612,18 @@ function ForgePage({ stats, achievements, selectedId, onSelect, onView, playerNa
       </div>
 
       <div className="erzmark-forge-header">
-        <h3>Deine geschmiedeten Pfade der Erfolge</h3>
+        <span><small>Schicksalsgeflecht</small><h3>Deine geschmiedeten Pfade</h3></span>
         {playerName && <span className="erzmark-forge-player">{playerName}</span>}
       </div>
 
+      <nav className="erzmark-forge-resonance" aria-label="Erfolgspfad fokussieren">
+        <button className={activeCategory === "all" ? "is-active" : ""} onClick={() => activatePath("all")}><i>✦</i><span><b>Alle Erzadern</b><small>{achievements.filter((a) => a.unlocked).length}/{achievements.length} geschmiedet</small></span></button>
+        {categoryStats.map((entry) => <button key={entry.key} className={activeCategory === entry.key ? "is-active" : ""} style={{ "--cat": CATEGORY_META[entry.key].color }} onClick={() => activatePath(entry.key)}><i>{CATEGORY_META[entry.key].icon}</i><span><b>{CATEGORY_META[entry.key].label}</b><small>{entry.unlocked}/{entry.total} · nächsten Pfad zeigen</small></span></button>)}
+      </nav>
+
       <div className="erzmark-forge-canvas-area">
         <ForgeSpotlight achievement={selected} forging={selected?.id === forgingId} onView={onView} />
-        <ForgeCanvas achievements={achievements} selectedId={selectedId} onSelect={onSelect} />
+        <ForgeCanvas achievements={achievements} selectedId={selectedId} onSelect={onSelect} activeCategory={activeCategory} onCategoryChange={activatePath} />
       </div>
 
       <ForgeFooterStats stats={stats} />

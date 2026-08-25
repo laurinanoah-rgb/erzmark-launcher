@@ -18,3 +18,12 @@ export async function uploadSkinFile(variant, file) {
 export async function resetSkin() {
   return invoke("reset_skin");
 }
+
+export function listSkinVault() { return invoke("list_skin_vault"); }
+export async function saveSkinToVault(file, displayName, variant) {
+  const fileBytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+  return invoke("save_skin_to_vault", { fileBytes, displayName, variant });
+}
+export function applyVaultSkin(id) { return invoke("apply_vault_skin", { id }); }
+export function deleteVaultSkin(id) { return invoke("delete_vault_skin", { id }); }
+export function openSkinVaultFolder() { return invoke("open_skin_vault_folder"); }

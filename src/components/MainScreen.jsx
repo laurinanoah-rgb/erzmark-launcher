@@ -26,6 +26,7 @@ import { detectDisplayProfile } from "../utils/displayPreferences.js";
 import { getProfile } from "../api/profileEditor.js";
 import ProfileScreenModern, { preloadProfileScreenData } from "./ProfileScreenModern.jsx";
 import LivingHall from "./LivingHall.jsx";
+import GateDepartureSequence from "./GateDepartureSequence.jsx";
 import { configureHallAmbience, playGateFailure, playGateIgnition } from "../utils/hallAmbience.js";
 
 const FriendsLounge = lazy(() => import("./FriendsLounge.jsx"));
@@ -193,14 +194,20 @@ function AppDownloadIcon() {
   );
 }
 
-function MenuDockContent({ onProfile, onFeedback, onSettings, onManager }) {
+function MenuDockContent({ onProfile, onAchievements, onSkin, onFeedback, onSettings, onManager }) {
   return (
     <div className="erzmark-forge-menu-content">
-      <div className="erzmark-secondary-center">
-        <button className="erzmark-rune-btn" onClick={onProfile}><span className="erzmark-rune-btn-icon"><ProfileIcon /></span>Profil</button>
-        <button className="erzmark-rune-btn" onClick={onFeedback}><span className="erzmark-rune-btn-icon"><FeedbackIcon /></span>Feedback</button>
-        <button className="erzmark-rune-btn" onClick={onSettings}><span className="erzmark-rune-btn-icon"><SettingsIcon /></span>Einstellungen</button>
-        <button className="erzmark-rune-btn" onClick={onManager} title="Nur für Teammitglieder"><span className="erzmark-rune-btn-icon"><TeamIcon /></span>Team</button>
+      <div className="erzmark-secondary-center erzmark-command-ribbon">
+        <span className="erzmark-command-ribbon-rune" aria-hidden="true">ᛖ</span>
+        <button className="erzmark-rune-btn" onClick={onProfile}><span className="erzmark-rune-btn-icon"><ProfileIcon /></span><span><strong>Profil</strong><small>Deine Chronik</small></span></button>
+        <button className="erzmark-rune-btn is-forge" onClick={onAchievements}><span className="erzmark-rune-btn-icon"><TrophyIcon /></span><span><strong>Schmiede</strong><small>Erfolgspfade</small></span></button>
+        <button className="erzmark-rune-btn is-skin" onClick={onSkin}><span className="erzmark-rune-btn-icon">◇</span><span><strong>Skin-Schmiede</strong><small>Gestalten</small></span></button>
+        <button className="erzmark-rune-btn" onClick={onSettings}><span className="erzmark-rune-btn-icon"><SettingsIcon /></span><span><strong>Seherkammer</strong><small>Einstellungen</small></span></button>
+        <span className="erzmark-command-ribbon-rune" aria-hidden="true">ᛗ</span>
+      </div>
+      <div className="erzmark-command-utilities">
+        <button onClick={onFeedback} title="Feedback"><FeedbackIcon /></button>
+        <button onClick={onManager} title="Teammitglieder"><TeamIcon /></button>
       </div>
       <div className="erzmark-social-links">
         <button type="button" className="erzmark-social-btn" onClick={() => openExternalUrl(DISCORD_URL).catch(() => {})} title="Discord" aria-label="Discord"><DiscordIcon /></button>
@@ -219,11 +226,13 @@ export default function MainScreen({ session, onLoggedOut }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
   const [launching, setLaunching] = useState(false);
+  const [launchPhase, setLaunchPhase] = useState("idle");
   const [gateCelebration, setGateCelebration] = useState(false);
   const [returnMoment, setReturnMoment] = useState(false);
   const [hallSettings, setHallSettings] = useState({ atmosphere_enabled: true, ambient_sound: false, ambient_volume: 32, cursor_runes: true });
   const [actionError, setActionError] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsCategory, setSettingsCategory] = useState("general");
   const [gameRunning, setGameRunning] = useState(false);
   const [heroSkinUrl, setHeroSkinUrl] = useState(null);
   const [showFriendsInMirror, setShowFriendsInMirror] = useState(false);
@@ -252,7 +261,7 @@ export default function MainScreen({ session, onLoggedOut }) {
   const footerRef = useRef(null);
   const cornerRef = useRef(null);
 
-  const socialModules = useSocialDockModules(() => setShowFriendsLounge(true));
+  const socialModules = useSocialDockModules(() => setShowFriendsLounge(true), session);
   const worldModules = getWorldDockModules();
   const layoutModules = [
     ...socialModules,
@@ -265,8 +274,10 @@ export default function MainScreen({ session, onLoggedOut }) {
       content: (
         <MenuDockContent
           onProfile={() => setShowProfile(true)}
+          onAchievements={() => { setShowAchievements(true); setNewAchievementGlow(false); }}
+          onSkin={() => { setSettingsCategory("minecraft"); setShowSettings(true); }}
           onFeedback={() => setShowFeedback(true)}
-          onSettings={() => setShowSettings(true)}
+          onSettings={() => { setSettingsCategory("display"); setShowSettings(true); }}
           onManager={() => setShowManager(true)}
         />
       ),
@@ -429,12 +440,15 @@ export default function MainScreen({ session, onLoggedOut }) {
       window.clearTimeout(launchTimeoutRef.current);
       setLaunching(false);
       setGameRunning(true);
+      setLaunchPhase("entered");
+      launchTimeoutRef.current = window.setTimeout(() => setLaunchPhase("idle"), 1400);
     }).then((fn) => {
       unlistenStarted = fn;
     });
     onGameExited(() => {
       window.clearTimeout(launchTimeoutRef.current);
       setLaunching(false);
+      setLaunchPhase("idle");
       setGameRunning(false);
       setReturnMoment(true);
       window.clearTimeout(returnMomentTimeoutRef.current);
@@ -482,17 +496,26 @@ export default function MainScreen({ session, onLoggedOut }) {
     if (status.state === "ready") {
       setBusy(true);
       setLaunching(true);
+      setLaunchPhase("awakening");
       playGateIgnition();
       try {
         if (!reduceMotionRef.current && perfTier === "full") {
-          await new Promise((resolve) => window.setTimeout(resolve, 820));
+          await new Promise((resolve) => window.setTimeout(resolve, 360));
+          setLaunchPhase("opening");
+          await new Promise((resolve) => window.setTimeout(resolve, 620));
         }
+        setLaunchPhase("crossing");
         await launchGame();
-        launchTimeoutRef.current = window.setTimeout(() => setLaunching(false), 15000);
+        launchTimeoutRef.current = window.setTimeout(() => {
+          setLaunching(false);
+          setLaunchPhase("idle");
+        }, 15000);
         // gameRunning wird über das "game-started"-Event gesetzt, sobald der
         // Prozess wirklich läuft – busy hier nur für den kurzen Start-Moment.
       } catch (err) {
         setLaunching(false);
+        setLaunchPhase("fractured");
+        launchTimeoutRef.current = window.setTimeout(() => setLaunchPhase("idle"), 2400);
         playGateFailure();
         setActionError(err?.message ?? String(err));
       } finally {
@@ -533,7 +556,7 @@ export default function MainScreen({ session, onLoggedOut }) {
     : busy
       ? { label: progress?.label ?? "Wird vorbereitet", detail: percent != null ? `${percent}% abgeschlossen` : "Einen Moment…", tone: "busy" }
       : status?.state === "ready"
-        ? { label: "Bereit zum Spielen", detail: `Fabric ${status.minecraft_version ?? ""}`.trim(), tone: "ready" }
+        ? { label: "Bereit zum Spielen", detail: `Minecraft ${status.minecraft_version ?? "26.2"}`.trim(), tone: "ready" }
         : status?.state === "update_available"
           ? { label: "Update verfügbar", detail: "Neue Inhalte warten", tone: "update" }
           : status?.state === "not_installed"
@@ -606,7 +629,7 @@ export default function MainScreen({ session, onLoggedOut }) {
           zoneRefs={{ left: sidebarLeftRef, right: sidebarRightRef, bottom: footerRef }}
           stageRef={heroMainRef}
           stage={
-            <section className="erzmark-stage-shell" onPointerMove={handleStagePointerMove} onPointerLeave={resetStagePointer}>
+            <section className="erzmark-stage-shell" data-launch-phase={launchPhase} onPointerMove={handleStagePointerMove} onPointerLeave={resetStagePointer}>
               <div className="erzmark-stage-ambient" aria-hidden="true">
                 <span className="erzmark-stage-vault" />
                 <span className="erzmark-stage-arch" />
@@ -626,6 +649,7 @@ export default function MainScreen({ session, onLoggedOut }) {
               </div>
 
               <LivingHall enabled={hallSettings.atmosphere_enabled} tier={perfTier} gameRunning={gameRunning} launching={launching} returnMoment={returnMoment} />
+              <GateDepartureSequence phase={launchPhase} reducedMotion={reduceMotionRef.current || perfTier !== "full"} />
 
               <div className="erzmark-stage-topline">
                 <div className="erzmark-stage-welcome"><span>Die Pforte erwartet dich</span><strong>{session?.username}</strong></div>
@@ -646,7 +670,7 @@ export default function MainScreen({ session, onLoggedOut }) {
                 {heroSkinUrl ? (
                   <div className="erzmark-hero-skin is-mirror-v2">
                     <Suspense fallback={<div className="erzmark-hero-placeholder is-loading" aria-label="Skin wird geladen"><GemIcon spinning /></div>}>
-                      <SkinMirror skinUrl={heroSkinUrl} width={260} height={360} emotes showFriends={showFriendsInMirror} />
+                      <SkinMirror skinUrl={heroSkinUrl} playerName={session?.username} width={260} height={360} emotes showFriends={showFriendsInMirror} />
                     </Suspense>
                     <button type="button" className="erzmark-link-btn erzmark-hero-skin-friends-toggle" onClick={() => setShowFriendsInMirror((v) => !v)} title="Online-Freunde im Skin Mirror anzeigen" aria-pressed={showFriendsInMirror}>👥</button>
                   </div>
@@ -715,7 +739,7 @@ export default function MainScreen({ session, onLoggedOut }) {
       </button>
 
       <Suspense fallback={<PanelLoadingFallback />}>
-        {showSettings && <SettingsScreen onClose={() => setShowSettings(false)} />}
+        {showSettings && <SettingsScreen initialCategory={settingsCategory} onClose={() => setShowSettings(false)} />}
         {showFriendsLounge && <FriendsLounge onClose={() => setShowFriendsLounge(false)} />}
         {showProfile && <ProfileScreenModern session={session} onClose={() => setShowProfile(false)} />}
         {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} />}

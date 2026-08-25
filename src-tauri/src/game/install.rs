@@ -28,7 +28,7 @@ pub struct PlayStatus {
 }
 
 /// Schneller Status-Check für die Install/Update/Play-Anzeige im Frontend.
-/// Vergleicht nur Versionsnummern (kein Datei-Hashing) – die eigentliche
+/// Vergleicht Client-, Minecraft- und Fabric-Version (kein Datei-Hashing) – die eigentliche
 /// Verifikation jeder einzelnen Datei passiert erst beim echten Installieren.
 pub async fn check_status(client: &reqwest::Client) -> PlayStatus {
     let local = install_state::load();
@@ -43,7 +43,13 @@ pub async fn check_status(client: &reqwest::Client) -> PlayStatus {
 
             let state = match &local {
                 None => "not_installed",
-                Some(l) if l.client_version != remote.client_version => "update_available",
+                Some(l)
+                    if l.client_version != remote.client_version
+                        || l.minecraft_version != remote.minecraft_version
+                        || l.fabric_loader_version != remote.fabric_loader_version =>
+                {
+                    "update_available"
+                }
                 Some(_) if !profile_exists => "update_available",
                 Some(_) => "ready",
             };
@@ -81,17 +87,38 @@ pub async fn check_status(client: &reqwest::Client) -> PlayStatus {
 /// Maven-Koordinaten (z. B. `org.ow2.asm:asm`), aber mit unterschiedlichen
 /// Versionen. Landen beide Jars auf dem Klassenpfad, verweigert Fabrics
 /// Knot-Classloader den Start ("duplicate ASM classes found on classpath").
-/// Deshalb hier pro Koordinate (Gruppe:Artefakt, ohne Version) nur die jeweils
-/// höchste Version behalten – Fabric-Libraries werden dabei zuletzt
-/// eingemischt, damit sie bei Gleichstand gewinnen.
+/// Deshalb hier pro Koordinate (Gruppe:Artefakt[:Klassifikator], ohne Version)
+/// nur die jeweils höchste Version behalten – Fabric-Libraries werden dabei
+/// zuletzt eingemischt, damit sie bei Gleichstand gewinnen.
+///
+/// WICHTIG: Der Klassifikator gehört zum Modul-Schlüssel, nicht zur Version.
+/// Seit Minecraft 26.2 gibt es kein klassifikatorloses `org.lwjgl:lwjgl:3.4.1`
+/// mehr – die LWJGL-Kernklassen stecken in `org.lwjgl:lwjgl:3.4.1:unsafe`.
+/// Ohne diese Trennung fiel es mit `org.lwjgl:lwjgl:3.4.1:natives-windows`
+/// auf denselben Schlüssel und flog aus dem Klassenpfad; das Spiel stürzte
+/// direkt beim Start mit `NoClassDefFoundError: org/lwjgl/system/CallbackI` ab.
 fn dedupe_classpath(vanilla: Vec<(String, String)>, fabric: Vec<(String, String)>) -> Vec<String> {
+    /// Zerlegt `gruppe:artefakt:version[:klassifikator]` in Modul-Schlüssel
+    /// und Versionsteil. Unbekannte Formen bleiben als Ganzes ihr eigener
+    /// Schlüssel, damit nie versehentlich etwas zusammenfällt.
+    fn split_coordinate(maven_name: &str) -> (String, &str) {
+        let parts: Vec<&str> = maven_name.split(':').collect();
+        match parts.as_slice() {
+            [group, artifact, version, classifier, ..] => {
+                (format!("{group}:{artifact}:{classifier}"), *version)
+            }
+            [group, artifact, version] => (format!("{group}:{artifact}"), *version),
+            _ => (maven_name.to_string(), ""),
+        }
+    }
+
     fn module_key(maven_name: &str) -> String {
-        maven_name.rsplitn(2, ':').nth(1).unwrap_or(maven_name).to_string()
+        split_coordinate(maven_name).0
     }
 
     fn version_key(maven_name: &str) -> Vec<u64> {
-        let version = maven_name.rsplit(':').next().unwrap_or("");
-        version
+        split_coordinate(maven_name)
+            .1
             .split(|c: char| c == '.' || c == '-' || c == '_' || c == '+')
             .map(|part| part.chars().take_while(|c| c.is_ascii_digit()).collect::<String>())
             .map(|digits| digits.parse::<u64>().unwrap_or(0))
@@ -157,6 +184,29 @@ fn extract_natives_if_needed(jar_path: &Path, artifact_path: &str, natives_dir: 
             .with_context(|| format!("Konnte native Datei nicht schreiben: {}", out_path.display()))?;
         std::io::copy(&mut entry, &mut out_file)?;
     }
+    Ok(())
+}
+
+/// Der Erzmark-Spielordner ist bewusst eine vollständig vom Launcher verwaltete
+/// Installation. Vor jedem Inhaltsupdate wird der Mod-Ordner deshalb geleert,
+/// damit alte Mods einer früheren Minecraft-Version nicht im neuen Fabric-
+/// Profil verbleiben. Fabric Loader selbst liegt unter `libraries/` und bleibt
+/// davon unberührt.
+fn reset_managed_mods(game_dir: &Path) -> Result<()> {
+    let mods_dir = game_dir.join("mods");
+
+    if mods_dir.exists() {
+        let metadata = std::fs::symlink_metadata(&mods_dir)
+            .context("Metadaten des Mod-Ordners konnten nicht gelesen werden")?;
+        if metadata.file_type().is_symlink() {
+            anyhow::bail!("Der verwaltete Mod-Ordner darf keine Verknüpfung sein: {}", mods_dir.display());
+        }
+        std::fs::remove_dir_all(&mods_dir)
+            .with_context(|| format!("Alte Mods konnten nicht entfernt werden: {}", mods_dir.display()))?;
+    }
+
+    std::fs::create_dir_all(&mods_dir)
+        .with_context(|| format!("Leerer Mod-Ordner konnte nicht erstellt werden: {}", mods_dir.display()))?;
     Ok(())
 }
 
@@ -351,6 +401,8 @@ pub async fn install_or_update(
 
     // 8. Erzmark-eigene Dateien (Mods/Config/Resourcepack laut Manifest)
     let game_dir = paths::game_dir()?;
+    report("erzmark-files", "Entferne alte Mods…", 0, 1);
+    reset_managed_mods(&game_dir)?;
     let total_files = erzmark_manifest.files.len() as u64;
     for (i, file) in erzmark_manifest.files.iter().enumerate() {
         report("erzmark-files", &format!("Erzmark-Dateien… ({})", file.path), i as u64, total_files);

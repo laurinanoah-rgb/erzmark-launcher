@@ -370,7 +370,7 @@ class HeroIdleEmoteAnimation extends PlayerAnimation {
  * keine WebGL-Szene gestartet - stattdessen ein einmalig gezeichnetes
  * 2D-Canvas-Abbild der Skin-Textur (siehe utils/skinPaperDoll.js).
  */
-export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes = false, showFriends = false }) {
+export default function SkinMirror({ skinUrl, playerName, width = 200, height = 260, emotes = false, lively = false, showFriends = false }) {
   const canvasRef = useRef(null);
   const viewerRef = useRef(null);
   const tierRef = useRef(getPerformanceTier());
@@ -379,6 +379,7 @@ export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes 
   const [friendsSkins, setFriendsSkins] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [achievementsLoaded, setAchievementsLoaded] = useState(false);
+  const [identityProfile, setIdentityProfile] = useState(null);
   const [sceneId, setSceneId] = useState(() => {
     try {
       return window.localStorage?.getItem(MIRROR_SCENE_STORAGE_KEY) || "hall";
@@ -493,12 +494,28 @@ export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes 
       width,
       height,
       zoom: 0.75,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
     });
-    viewer.animation = emotes ? new HeroIdleEmoteAnimation() : new IdleAnimation();
+    if (viewer.controls) {
+      viewer.controls.enableDamping = true;
+      viewer.controls.dampingFactor = 0.09;
+      viewer.controls.rotateSpeed = 0.55;
+      viewer.controls.zoomSpeed = 0.65;
+    }
+    viewer.animation = emotes || lively ? new HeroIdleEmoteAnimation() : new IdleAnimation();
     viewer.playerWrapper.rotation.y = (STATIC_YAW_DEGREES * Math.PI) / 180;
     viewerRef.current = viewer;
 
+    const observer = new IntersectionObserver(([entry]) => {
+      viewer.renderPaused = !entry.isIntersecting || document.hidden;
+    }, { threshold: 0.05 });
+    observer.observe(canvasRef.current);
+    const handleVisibility = () => { viewer.renderPaused = document.hidden || !canvasRef.current?.isConnected; };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibility);
       viewer.dispose();
       viewerRef.current = null;
     };
@@ -516,7 +533,7 @@ export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes 
   // Kopf-Tracking zum Mauszeiger (Fensterweit, nicht nur über dem Canvas -
   // wirkt sonst nur an, wenn die Maus zufällig genau über der Vorschau ist).
   useEffect(() => {
-    if (tier !== "full" || !emotes) return;
+    if (tier !== "full" || (!emotes && !lively)) return;
 
     let lastInteraction = Date.now();
 
@@ -551,27 +568,29 @@ export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes 
       window.removeEventListener("keydown", onKeyDown);
       window.clearInterval(inactivityTimer);
     };
-  }, [tier, emotes]);
+  }, [tier, emotes, lively]);
 
   // Tab-Hover in den Dock-Widgets löst eine kurze "Neugier"-Reaktion aus.
   useEffect(() => {
-    if (tier !== "full" || !emotes) return;
+    if (tier !== "full" || (!emotes && !lively)) return;
     return subscribeTabHover(() => {
       const anim = viewerRef.current?.animation;
       if (anim instanceof HeroIdleEmoteAnimation) {
         anim.curiousUntil = Date.now() + 1600;
       }
     });
-  }, [tier, emotes]);
+  }, [tier, emotes, lively]);
 
-  // Charakter-Level laden (Proxy für die Pose-Stufe, siehe poseTierForLevel).
+  // Aktives Profil liefert Pose-Stufe sowie die echte LuckPerms-Identität
+  // (Rangname + serverseitiges Glyph/Icon) für das Nametag über der Figur.
   useEffect(() => {
-    if (tier !== "full" || !emotes) return;
+    if (!emotes) return;
     let cancelled = false;
     getCharacterProfiles()
       .then((profiles) => {
         if (cancelled) return;
         const active = profiles.find((p) => p.active);
+        setIdentityProfile(active ?? profiles[0] ?? null);
         const anim = viewerRef.current?.animation;
         if (anim instanceof HeroIdleEmoteAnimation) {
           anim.level = active?.level ?? null;
@@ -659,6 +678,13 @@ export default function SkinMirror({ skinUrl, width = 200, height = 260, emotes 
       {emotes && (
         <div className="erzmark-mirror-v2-mark" aria-hidden="true">
           <span>Skin Mirror</span><strong>V2</strong>
+        </div>
+      )}
+      {emotes && playerName && (
+        <div className="erzmark-mirror-nameplate" aria-label={`${identityProfile?.rankName ? `${identityProfile.rankName} ` : ""}${playerName}`}>
+          {identityProfile?.rankIconUrl && <img src={identityProfile.rankIconUrl} alt="" />}
+          {identityProfile?.rankName && <span>{identityProfile.rankName}</span>}
+          <strong>{playerName}</strong>
         </div>
       )}
       <canvas

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import FriendsList from "./FriendsList.jsx";
-import ComingSoonPanel from "./ComingSoonPanel.jsx";
 import DockTabs from "./DockTabs.jsx";
+import GuildCouncil from "./GuildCouncil.jsx";
+import RealmMap from "./RealmMap.jsx";
 
 export function FriendsTabIcon() {
   return (
@@ -39,7 +40,7 @@ export function MapTabIcon() {
  * existieren zwar bereits über MMOCore, der Lese-Endpunkt dafür ist aber noch
  * nicht gebaut; die Karte existiert serverseitig bislang gar nicht.
  */
-export function useSocialDockModules(onOpenFriends) {
+export function useSocialDockModules(onOpenFriends, session) {
   const [friendsOnline, setFriendsOnline] = useState(0);
 
   return [
@@ -64,26 +65,14 @@ export function useSocialDockModules(onOpenFriends) {
       label: "Gildenrat",
       Icon: GuildTabIcon,
       color: "gold",
-      content: (
-        <ComingSoonPanel
-          icon={<GuildTabIcon />}
-          title="Der Ratssaal"
-          description="Deine Gilde versammelt sich hier bald mit Wappen, Mitgliedern und Rang."
-        />
-      ),
+      content: <GuildCouncil playerName={session?.username} onOpenFriends={onOpenFriends} />,
     },
     {
       id: "map",
       label: "Reichskarte",
       Icon: MapTabIcon,
       color: "green",
-      content: (
-        <ComingSoonPanel
-          icon={<MapTabIcon />}
-          title="Karte des Grenzlands"
-          description="Die lebendige Karte von Erzmark wird hier bald ihre Wege und Geheimnisse offenbaren."
-        />
-      ),
+      content: <RealmMap />,
     },
   ];
 }

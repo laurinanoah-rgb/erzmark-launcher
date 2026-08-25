@@ -9,8 +9,8 @@ export const DEFAULT_DISPLAY_PREFERENCES = {
 const UI_ZOOM = {
   compact: 0.9,
   normal: 1,
-  large: 1.14,
-  extra_large: 1.28,
+  large: 1.26,
+  extra_large: 1.46,
 };
 
 const TEXT_ADJUST = {
@@ -64,9 +64,9 @@ export function resolveDisplayPreferences(settings) {
   // Root-Zoom fuer 21:9 wuerde in WebView2 die nutzbare Breite verkleinern
   // und rechts eine schwarze Flaeche erzeugen. Zoom bleibt deshalb allein
   // den expliziten Barrierefreiheitsstufen vorbehalten.
-  const profileZoom = 1;
+  const profileZoom = profile === "21:9" ? 1.08 : 1;
   const zoom = Math.min(
-    1.56,
+    1.72,
     Math.max(
       0.88,
       profileZoom * UI_ZOOM[preferences.ui_scale] * TEXT_ZOOM[preferences.text_scale]

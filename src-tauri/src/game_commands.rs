@@ -70,6 +70,18 @@ pub async fn launch_game(app: AppHandle, state: State<'_, AppState>) -> Result<(
 
     let profile = launch::load_profile(&local_state.profile_id).map_err(GameError::from)?;
 
+    // Niemals ein veraltetes Start-Profil verwenden. Besonders wichtig, wenn
+    // nur die Minecraft-/Fabric-Version im Manifest wechselt, die
+    // Client-Version aber versehentlich gleich bleibt.
+    if profile.minecraft_version != local_state.minecraft_version {
+        return Err(GameError {
+            message: format!(
+                "Das gespeicherte Start-Profil ({}) passt nicht zur installierten Minecraft-Version ({}). Bitte zuerst aktualisieren.",
+                profile.minecraft_version, local_state.minecraft_version
+            ),
+        });
+    }
+
     let access_token = {
         let guard = state.session.lock().unwrap();
         let session = guard.as_ref().ok_or_else(|| GameError {
@@ -170,4 +182,9 @@ pub fn open_screenshots_folder() -> Result<(), GameError> {
 #[tauri::command]
 pub fn open_screenshot(filename: String) -> Result<(), GameError> {
     crate::game::screenshots::open_file(&filename).map_err(GameError::from)
+}
+
+#[tauri::command]
+pub fn get_screenshot_data_url(filename: String) -> Result<String, GameError> {
+    crate::game::screenshots::read_data_url(&filename).map_err(GameError::from)
 }

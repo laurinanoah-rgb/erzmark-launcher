@@ -37,7 +37,7 @@ function HallPreview({ settings }) {
   );
 }
 
-export default function SettingsScreen({ onClose }) {
+export default function SettingsScreen({ onClose, initialCategory = "general" }) {
   const [settings, setSettings] = useState(null);
   const [version, setVersion] = useState("");
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,7 @@ export default function SettingsScreen({ onClose }) {
   const [error, setError] = useState(null);
   const [actionMessage, setActionMessage] = useState(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("general");
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
 
   useEffect(() => {
     Promise.all([getSettings(), getLauncherVersion()])
@@ -190,8 +190,8 @@ export default function SettingsScreen({ onClose }) {
                       >
                         <option value="compact">Kompakt (90 %)</option>
                         <option value="normal">Standard (100 %)</option>
-                        <option value="large">Groß (114 %)</option>
-                        <option value="extra_large">Sehr groß (128 %)</option>
+                        <option value="large">Groß (126 %)</option>
+                        <option value="extra_large">Sehr groß (146 %)</option>
                       </select>
                     </label>
                     <label className="erzmark-settings-row">
@@ -227,9 +227,9 @@ export default function SettingsScreen({ onClose }) {
                       <span>Bewegungen und Animationen reduzieren</span>
                     </label>
                     <p className="erzmark-hint">
-                      Die Einstellungen werden nach dem Speichern sofort angewendet. UI- und
-                      Textskalierung werden kombiniert; der 21:9-Modus vergrößert die gesamte
-                      Oberfläche, nicht nur einzelne Texte.
+                      Die Einstellungen werden nach dem Speichern sofort angewendet. Auf 21:9
+                      erhält die gesamte Oberfläche zusätzlich 8 % Lesbarkeitsausgleich. UI-
+                      und Textskalierung lassen sich weiterhin kombinieren.
                     </p>
                   </section>
 

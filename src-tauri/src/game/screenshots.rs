@@ -103,3 +103,17 @@ pub fn open_file(filename: &str) -> Result<()> {
     open::that(path).context("Konnte Screenshot nicht öffnen")?;
     Ok(())
 }
+
+/// Lädt genau ein ausgewähltes Original für das Vollbild-Karussell. Dadurch
+/// müssen nicht alle großen PNGs gleichzeitig über die Tauri-Bridge wandern.
+pub fn read_data_url(filename: &str) -> Result<String> {
+    let candidate = Path::new(filename);
+    if candidate.components().count() != 1
+        || !candidate.extension().and_then(|ext| ext.to_str()).map(|ext| ext.eq_ignore_ascii_case("png")).unwrap_or(false)
+    {
+        anyhow::bail!("Ungültiger Screenshot-Dateiname");
+    }
+    let path = screenshots_dir()?.join(candidate);
+    let bytes = std::fs::read(&path).with_context(|| format!("Konnte Screenshot nicht lesen: {}", path.display()))?;
+    Ok(format!("data:image/png;base64,{}", STANDARD.encode(bytes)))
+}

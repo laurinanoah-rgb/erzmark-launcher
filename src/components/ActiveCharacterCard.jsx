@@ -67,7 +67,8 @@ export default function ActiveCharacterCard() {
             <img className="erzmark-rank-icon" src={active.rankIconUrl} alt={active.rankName ?? ""} />
           </span>
         )}
-        {prettifyClassName(active.class)}
+        <strong>{active.name ?? prettifyClassName(active.class)}</strong>
+        <small>{prettifyClassName(active.class)}</small>
       </span>
       <span className="erzmark-active-char-level">Level {active.level}</span>
       <div className="erzmark-active-char-stats">
